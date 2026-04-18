@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadHunter — Google Maps Lead Scraper</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0d0d0f;
+  --bg-card: #141418;
+  --bg-input: #1a1a20;
+  --accent: #00ff88;
+  --accent-dim: rgba(0, 255, 136, 0.15);
+  --accent-glow: rgba(0, 255, 136, 0.3);
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --border: #2a2a30;
+  --border-dim: #1e1e24;
+  --success: #00ff88;
+  --error: #ff6b6b;
+  --warning: #ffd93d;
+  --sidebar-w: 280px;
+  --header-h: 64px;
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* Layout */
+.app { display: flex; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-dim);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  z-index: 100;
+}
+
+.sidebar.collapsed {
+  transform: translateX(calc(-1 * var(--sidebar-w)));
+  min-width: 0;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-header h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  font-family: 'Syne', sans-serif;
+}
+
+.sidebar-actions { display: flex; gap: 8px; }
+
+.sidebar-actions button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.sidebar-actions button:hover { color: var(--error); }
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.history-date-group { margin-bottom: 12px; }
+
+.history-date-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  margin: 2px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 13px;
+}
+
+.history-item:hover { background: var(--bg-input); }
+
+.history-item.active { background: var(--accent-dim); border-left: 2px solid var(--accent); }
+
+.history-item-info { flex: 1; min-width: 0; }
+
+.history-item-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.history-item-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.history-item-delete {
+  background: none;
+  border: none;
+  color: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.history-item:hover .history-item-delete { color: var(--text-muted); }
+.history-item-delete:hover { color: var(--error) !important; }
+
+/* Main Content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Header */
+.header {
+  height: var(--header-h);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.hamburger {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.brand { display: flex; align-items: baseline; gap: 10px; }
+
+.brand h1 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+
+.brand span {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.token-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 4px 0 12px;
+}
+
+.token-group label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.token-group input {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 8px 4px;
+  width: 180px;
+  outline: none;
+}
+
+.token-group input::placeholder { color: #444; }
+
+.token-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.token-btn:hover { color: var(--text); }
+
+.token-saved { color: var(--success) !important; }
+
+/* Content Area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* Search Panel */
+.search-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.search-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.form-group label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.form-group select,
+.form-group input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group select:focus,
+.form-group input:focus { border-color: var(--accent); }
+
+.form-group select { cursor: pointer; }
+.form-group select option { background: var(--bg-input); color: var(--text); }
+
+.custom-category-input { display: none; margin-top: 6px; }
+.custom-category-input.visible { display: block; }
+
+/* Multi-keyword tags */
+.keyword-tags-wrap {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-height: 42px;
+  cursor: text;
+  transition: border-color 0.2s;
+}
+.keyword-tags-wrap:focus-within { border-color: var(--accent); }
+.keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.keyword-tag span { overflow: hidden; text-overflow: ellipsis; }
+.keyword-tag-remove {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 1px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.keyword-tag-remove:hover { opacity: 1; }
+.keyword-type-input {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  outline: none;
+  min-width: 140px;
+  flex: 1;
+  padding: 2px 4px;
+}
+.keyword-type-input::placeholder { color: #555; }
+.keyword-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.keyword-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.keyword-preset-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.keyword-preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.btn-primary:hover { box-shadow: 0 0 20px var(--accent-glow); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { border-color: var(--text-muted); }
+.btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Progress Bar */
+.progress-bar {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-bar.visible { display: flex; }
+
+.progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--warning);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.progress-dot.succeeded { background: var(--success); animation: none; }
+.progress-dot.failed { background: var(--error); animation: none; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+.progress-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.progress-text span { color: var(--accent); font-weight: 600; }
+
+/* Stats Bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input-wrap::before {
+  content: '\1F50D';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.search-filter-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 8px 12px 8px 32px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-filter-input:focus { border-color: var(--accent); }
+
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.chip:hover { border-color: var(--text-muted); }
+
+.export-group { display: flex; gap: 6px; margin-left: auto; }
+
+/* Table */
+.table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: calc(100vh - 420px);
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+thead th {
+  background: var(--bg-input);
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+thead th:hover { color: var(--accent); }
+thead th.sorted { color: var(--accent); }
+thead th .sort-arrow { margin-left: 4px; font-size: 10px; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border-dim);
+  transition: background 0.15s;
+}
+
+tbody tr:nth-child(even) { background: rgba(255,255,255,0.01); }
+
+tbody tr:hover {
+  background: var(--accent-dim);
+  border-left: 2px solid var(--accent);
+}
+
+tbody td {
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+tbody td:first-child { color: var(--text-muted); font-size: 11px; }
+
+tbody td a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+tbody td a:hover { opacity: 0.7; }
+
+.rating-stars { color: var(--warning); }
+
+.action-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.status-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 4px 6px;
+  cursor: pointer;
+  outline: none;
+  font-weight: 600;
+  transition: border-color 0.2s;
+}
+
+.status-select:hover { border-color: var(--text-muted); }
+.status-select:focus { border-color: var(--accent); }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-dim);
+}
+
+.pagination-info {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pagination-btns { display: flex; gap: 4px; }
+
+.page-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Empty & Error States */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state h3 { font-family: 'Syne', sans-serif; font-size: 16px; margin-bottom: 6px; color: var(--text); }
+.empty-state p { font-size: 13px; }
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeSlideIn 0.3s ease;
+  max-width: 380px;
+}
+
+.toast.error { border-color: var(--error); }
+.toast.success { border-color: var(--success); }
+.toast.warning { border-color: var(--warning); }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in { animation: fadeIn 0.3s ease; }
+
+/* Confirm Dialog */
+.dialog-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 9998;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-overlay.visible { display: flex; }
+
+.dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+}
+
+.dialog h3 { font-family: 'Syne', sans-serif; margin-bottom: 8px; }
+.dialog p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.btn-danger {
+  background: var(--error);
+  color: #000;
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 200;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+  }
+
+  .stats-bar { grid-template-columns: repeat(2, 1fr); }
+
+  .search-row { flex-direction: column; }
+  .form-group { min-width: 100%; }
+
+  .token-group input { width: 120px; }
+
+  .brand span { display: none; }
+
+  .export-group { margin-left: 0; width: 100%; }
+  .export-group .btn { flex: 1; justify-content: center; }
+
+  .table-container { max-height: calc(100vh - 500px); }
+}
+
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 150;
+}
+
+.mobile-overlay.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>History</h3>
+      <div class="sidebar-actions">
+        <button onclick="confirmClearHistory()" title="Clear all history">&#128465;</button>
+      </div>
+    </div>
+    <div class="sidebar-body" id="historyList">
+      <div class="empty-state" style="padding:30px 10px">
+        <p style="font-size:12px">No sessions yet</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Header -->
+    <header class="header">
+      <button class="hamburger" onclick="toggleSidebar()" title="Toggle sidebar">&#9776;</button>
+      <div class="brand">
+        <h1>LeadHunter</h1>
+        <span>Google Maps Lead Scraper &middot; 2026</span>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-secondary" id="folderBtn" onclick="pickBaseFolder()" style="font-size:12px;padding:8px 12px">&#128194; Set Folder</button>
+        <div class="token-group">
+          <label>API Token</label>
+          <input type="password" id="tokenInput" placeholder="apify_api_..." autocomplete="off">
+          <button class="token-btn" id="tokenEye" onclick="toggleTokenVisibility()" title="Show/hide token">&#128065;</button>
+          <button class="token-btn" id="tokenSave" onclick="saveToken()" title="Save token">&#10003;</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Search Panel -->
+      <div class="search-panel">
+        <div class="search-row">
+          <div class="form-group" style="min-width:260px;flex:2">
+            <label>Keywords <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(press Enter or , to add)</span></label>
+            <div class="keyword-tags-wrap" id="keywordTagsWrap" onclick="document.getElementById('keywordTypeInput').focus()">
+              <input type="text" id="keywordTypeInput" class="keyword-type-input" placeholder="e.g. self drive car rental">
+            </div>
+            <div class="keyword-presets">
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Travel Agency')">Travel Agency</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Tour Operator')">Tour Operator</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Car Rental')">Car Rental</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Self Drive Car Rental')">Self Drive</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Tempo Traveller Rental')">Tempo Traveller</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Wedding Car Rental')">Wedding Car</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Taxi Service')">Taxi Service</button>
+              <button class="keyword-preset-btn" onclick="addPresetKeyword('Hotel')">Hotel</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="cityInput" placeholder="e.g. Rajkot">
+          </div>
+          <div class="form-group">
+            <label>Country</label>
+            <input type="text" id="countryInput" value="India">
+          </div>
+          <div class="form-group" style="min-width:100px;flex:0.5">
+            <label>Max / Keyword</label>
+            <select id="maxResults">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0;min-width:auto">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="searchBtn" onclick="startSearch()">
+              <span id="searchBtnText">Search</span>
+              <span class="spinner" id="searchSpinner" style="display:none"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-dot" id="progressDot"></div>
+        <div class="progress-text" id="progressText">Initializing actor run...</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-label">Total Leads</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statPhone">0</div>
+          <div class="stat-label">With Phone</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statWebsite">0</div>
+          <div class="stat-label">With Website</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statEmail">0</div>
+          <div class="stat-label">With Email</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-input-wrap">
+          <input type="text" class="search-filter-input" id="filterInput" placeholder="Filter by name, address, phone..." oninput="applyFilters()">
+        </div>
+        <div class="filter-chips">
+          <span class="chip" data-filter="phone" onclick="toggleChip(this)">Has Phone</span>
+          <span class="chip" data-filter="website" onclick="toggleChip(this)">Has Website</span>
+          <span class="chip" data-filter="email" onclick="toggleChip(this)">Has Email</span>
+          <span class="chip" onclick="clearFilters()">Clear</span>
+        </div>
+        <div class="export-group">
+          <button class="btn btn-secondary" id="btnSaveJson" onclick="saveJsonFile()" disabled>Save JSON</button>
+          <button class="btn btn-secondary" id="btnExportXlsx" onclick="exportXlsx()" disabled>Export XLSX</button>
+          <button class="btn btn-secondary" id="btnExportCsv" onclick="exportCsv()" disabled>Export CSV</button>
+          <button class="btn btn-secondary" id="btnCopyPhones" onclick="copyPhones()" disabled>Copy Phones</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px">#</th>
+                <th data-sort="title" onclick="sortTable('title')">Name <span class="sort-arrow"></span></th>
+                <th data-sort="categoryName" onclick="sortTable('categoryName')">Category <span class="sort-arrow"></span></th>
+                <th data-sort="address" onclick="sortTable('address')">Address <span class="sort-arrow"></span></th>
+                <th data-sort="phone" onclick="sortTable('phone')">Phone <span class="sort-arrow"></span></th>
+                <th data-sort="website" onclick="sortTable('website')">Website <span class="sort-arrow"></span></th>
+                <th data-sort="totalScore" onclick="sortTable('totalScore')">Rating <span class="sort-arrow"></span></th>
+                <th data-sort="reviewsCount" onclick="sortTable('reviewsCount')">Reviews <span class="sort-arrow"></span></th>
+                <th data-sort="status" onclick="sortTable('status')">Status <span class="sort-arrow"></span></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state">
+          <div class="icon">&#128269;</div>
+          <h3>No leads yet</h3>
+          <p>Search for businesses above or load a session from history</p>
+        </div>
+        <div class="pagination" id="pagination" style="display:none">
+          <div class="pagination-info" id="paginationInfo"></div>
+          <div class="pagination-btns" id="paginationBtns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="dialog-overlay" id="dialogOverlay">
+  <div class="dialog">
+    <h3 id="dialogTitle">Confirm</h3>
+    <p id="dialogMessage">Are you sure?</p>
+    <div class="dialog-actions">
+      <button class="btn-cancel" onclick="closeDialog()">Cancel</button>
+      <button class="btn-danger" id="dialogConfirm" onclick="dialogAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let currentLeads = [];
+let filteredLeads = [];
+let currentPage = 1;
+const PAGE_SIZE = 25;
+let sortCol = null;
+let sortAsc = true;
+let activeFilters = { phone: false, website: false, email: false };
+let pollTimer = null;
+let activeSessionId = null;
+let pendingDialogAction = null;
+let baseDirHandle = null;
+let lastSearchCategory = '';
+let lastSearchCity = '';
+let historyIndex = [];
+let currentFileRef = null;
+let keywordList = [];
+
+const LEAD_STATUSES = {
+  'new':       { label: 'New',        color: '#888' },
+  'contacted': { label: 'Contacted',  color: '#4dabf7' },
+  'follow-up': { label: 'Follow Up',  color: '#ffd93d' },
+  'demo':      { label: 'Demo',       color: '#cc5de8' },
+  'won':       { label: 'Won',        color: '#00ff88' },
+  'lost':      { label: 'Lost',       color: '#ff6b6b' }
+};
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  const savedToken = localStorage.getItem('apify_token');
+  if (savedToken) {
+    document.getElementById('tokenInput').value = savedToken;
+    document.getElementById('tokenSave').classList.add('token-saved');
+  }
+
+  // Restore folder handle and load history from JSON files on disk
+  const stored = await loadHandleFromIDB();
+  if (stored) {
+    try {
+      const perm = await stored.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        baseDirHandle = stored;
+        updateFolderStatus(true);
+        await scanHistoryFromDisk();
+      }
+    } catch {}
+  }
+  renderHistory();
+});
+
+// ============================================================
+// TOKEN
+// ============================================================
+function getToken() {
+  return (document.getElementById('tokenInput').value || '').trim();
+}
+
+function saveToken() {
+  const token = getToken();
+  if (!token) {
+    showToast('Enter a token first', 'warning');
+    return;
+  }
+  localStorage.setItem('apify_token', token);
+  document.getElementById('tokenSave').classList.add('token-saved');
+  showToast('Token saved', 'success');
+}
+
+function toggleTokenVisibility() {
+  const inp = document.getElementById('tokenInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// ============================================================
+// MULTI-KEYWORD TAGS
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('keywordTypeInput');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = input.value.trim().replace(/,$/, '');
+      if (val) { addKeyword(val); input.value = ''; }
+    } else if (e.key === 'Backspace' && !input.value && keywordList.length > 0) {
+      removeKeyword(keywordList.length - 1);
+    }
+  });
+  input.addEventListener('blur', () => {
+    const val = input.value.trim();
+    if (val) { addKeyword(val); input.value = ''; }
+  });
+});
+
+function addKeyword(kw) {
+  const clean = kw.trim();
+  if (!clean || keywordList.includes(clean)) return;
+  keywordList.push(clean);
+  renderKeywordTags();
+}
+
+function addPresetKeyword(kw) {
+  addKeyword(kw);
+  document.getElementById('keywordTypeInput').focus();
+}
+
+function removeKeyword(idx) {
+  keywordList.splice(idx, 1);
+  renderKeywordTags();
+}
+
+function renderKeywordTags() {
+  const wrap = document.getElementById('keywordTagsWrap');
+  const input = document.getElementById('keywordTypeInput');
+  // Remove existing tags (keep the input)
+  wrap.querySelectorAll('.keyword-tag').forEach(t => t.remove());
+  keywordList.forEach((kw, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'keyword-tag';
+    tag.innerHTML = `<span title="${escHtml(kw)}">${escHtml(truncate(kw, 22))}</span><button class="keyword-tag-remove" onclick="removeKeyword(${i})" title="Remove">&times;</button>`;
+    wrap.insertBefore(tag, input);
+  });
+  input.placeholder = keywordList.length > 0 ? 'Add more...' : 'e.g. self drive car rental';
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+async function startSearch() {
+  const token = getToken();
+  if (!token) {
+    showToast('Add your Apify token first', 'error');
+    return;
+  }
+
+  // Commit any unfinished text in the input
+  const inputEl = document.getElementById('keywordTypeInput');
+  const pending = inputEl.value.trim();
+  if (pending) { addKeyword(pending); inputEl.value = ''; }
+
+  if (keywordList.length === 0) { showToast('Add at least one keyword', 'warning'); return; }
+
+  const city = document.getElementById('cityInput').value.trim();
+  const country = document.getElementById('countryInput').value.trim();
+  const max = parseInt(document.getElementById('maxResults').value);
+
+  if (!city) { showToast('Enter a city name', 'warning'); return; }
+
+  const baseLocation = `${city}${country ? ', ' + country : ''}`;
+  const searchStrings = keywordList.map(kw => `${kw} in ${baseLocation}`);
+  const label = keywordList.length === 1 ? keywordList[0] : `${keywordList[0]} +${keywordList.length - 1} more`;
+  const combinedCategory = keywordList.join(' | ');
+
+  setSearchLoading(true);
+  showProgress('RUNNING', `Starting actor for ${keywordList.length} keyword(s) in ${city}...`);
+
+  try {
+    const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        searchStringsArray: searchStrings,
+        maxCrawledPlacesPerSearch: max,
+        maxAutomaticZoomOut: 5,
+        zoom: 11,
+        maxCrawledPlaces: max * searchStrings.length,
+        maxAutoscrolledPlacesPerSearch: max,
+        language: 'en',
+        exportPlaceUrls: true,
+        includeHistogram: false,
+        includeOpeningHours: false,
+        includePeopleAlsoSearch: false,
+        scrapeDirectories: false
+      })
+    });
+
+    if (!runRes.ok) {
+      const errText = await runRes.text();
+      throw new Error(`API error ${runRes.status}: ${errText}`);
+    }
+
+    const runData = await runRes.json();
+    const runId = runData.data.id;
+
+    showProgress('RUNNING', `Actor started (Run ID: ${runId.slice(0,8)}...). ${searchStrings.length} search string(s) running...`);
+    pollForResults(runId, token, combinedCategory, city);
+
+  } catch (err) {
+    setSearchLoading(false);
+    hideProgress();
+    showToast(err.message || 'Failed to start actor run', 'error');
+  }
+}
+
+function pollForResults(runId, token, category, city) {
+  let elapsed = 0;
+
+  pollTimer = setInterval(async () => {
+    elapsed += 5;
+    try {
+      const res = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(token)}`);
+      if (!res.ok) throw new Error(`Poll error: ${res.status}`);
+
+      const data = await res.json();
+      const status = data.data.status;
+
+      if (status === 'RUNNING' || status === 'READY') {
+        const count = data.data.stats?.itemCount || 0;
+        showProgress('RUNNING', `Status: ${status} | Items so far: ${count} | Elapsed: ${elapsed}s`);
+        return;
+      }
+
+      clearInterval(pollTimer);
+      pollTimer = null;
+
+      if (status === 'SUCCEEDED') {
+        showProgress('SUCCEEDED', 'Actor finished. Fetching dataset...');
+        await fetchDataset(runId, token, category, city);
+      } else {
+        showProgress('FAILED', `Actor ${status}. Check run: https://console.apify.com/actors/runs/${runId}`);
+        showToast(`Actor run ${status}. Click the link in the progress bar to debug.`, 'error');
+        setSearchLoading(false);
+      }
+    } catch (err) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      hideProgress();
+      setSearchLoading(false);
+      showToast('Network error while polling. ' + err.message, 'error');
+    }
+  }, 5000);
+}
+
+async function fetchDataset(runId, token, category, city) {
+  try {
+    const res = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${encodeURIComponent(token)}&format=json`);
+    if (!res.ok) throw new Error(`Dataset fetch error: ${res.status}`);
+
+    const items = await res.json();
+
+    if (!items || items.length === 0) {
+      hideProgress();
+      setSearchLoading(false);
+      setLeads([]);
+      showToast('0 results found. Try broadening your search.', 'warning');
+      return;
+    }
+
+    const rawLeads = items.map(item => ({
+      title: item.title || item.name || '',
+      address: item.address || item.street || '',
+      phone: item.phone || item.phoneUnformatted || '',
+      website: item.website || '',
+      totalScore: item.totalScore || item.rating || 0,
+      reviewsCount: item.reviewsCount || 0,
+      categoryName: item.categoryName || category,
+      url: item.url || item.placeUrl || '',
+      email: extractEmail(item),
+      status: 'new'
+    }));
+
+    // Deduplicate by url, then by title+address
+    const seen = new Set();
+    const leads = rawLeads.filter(l => {
+      const key = l.url || `${l.title.toLowerCase()}|${l.address.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const dupeCount = rawLeads.length - leads.length;
+    if (dupeCount > 0) showToast(`Removed ${dupeCount} duplicate(s) across keywords`, 'info');
+
+    // Auto-save JSON + CSV + XLSX to disk
+    lastSearchCategory = category;
+    lastSearchCity = city;
+    await autoSaveAllFormats(category, city, leads);
+
+    // Reload history from disk (JSON files = source of truth)
+    await scanHistoryFromDisk();
+    // Set active to the latest entry
+    if (historyIndex.length > 0) {
+      activeSessionId = 0;
+      currentFileRef = { catDirHandle: historyIndex[0].catDirHandle, filename: historyIndex[0].filename };
+    }
+    setLeads(leads);
+    renderHistory();
+    hideProgress();
+    setSearchLoading(false);
+    showToast(`Found ${leads.length} leads!`, 'success');
+
+  } catch (err) {
+    hideProgress();
+    setSearchLoading(false);
+    showToast('Failed to fetch dataset: ' + err.message, 'error');
+  }
+}
+
+function extractEmail(item) {
+  if (item.email) return item.email;
+  if (item.emails && item.emails.length) return item.emails[0];
+  const text = JSON.stringify(item);
+  const match = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  return match ? match[0] : '';
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setSearchLoading(loading) {
+  const btn = document.getElementById('searchBtn');
+  const text = document.getElementById('searchBtnText');
+  const spinner = document.getElementById('searchSpinner');
+  btn.disabled = loading;
+  text.textContent = loading ? 'Searching...' : 'Search';
+  spinner.style.display = loading ? 'inline-block' : 'none';
+}
+
+function showProgress(status, msg) {
+  const bar = document.getElementById('progressBar');
+  const dot = document.getElementById('progressDot');
+  const text = document.getElementById('progressText');
+  bar.classList.add('visible');
+  dot.className = 'progress-dot';
+  if (status === 'SUCCEEDED') dot.classList.add('succeeded');
+  else if (status === 'FAILED') dot.classList.add('failed');
+  text.innerHTML = msg;
+}
+
+function hideProgress() {
+  document.getElementById('progressBar').classList.remove('visible');
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icons = { success: '\u2713', error: '\u2717', warning: '\u26A0', info: '\u2139' };
+  toast.innerHTML = `<span>${icons[type] || ''}</span> ${escHtml(msg)}`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ============================================================
+// LEADS & TABLE
+// ============================================================
+function setLeads(leads) {
+  currentLeads = leads;
+  currentLeads.forEach((l, i) => l._idx = i);
+  currentPage = 1;
+  sortCol = null;
+  sortAsc = true;
+  updateStats();
+  applyFilters();
+  updateExportButtons();
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = currentLeads.length;
+  document.getElementById('statPhone').textContent = currentLeads.filter(l => l.phone).length;
+  document.getElementById('statWebsite').textContent = currentLeads.filter(l => l.website).length;
+  document.getElementById('statEmail').textContent = currentLeads.filter(l => l.email).length;
+}
+
+function applyFilters() {
+  const q = (document.getElementById('filterInput').value || '').toLowerCase();
+  filteredLeads = currentLeads.filter(l => {
+    if (activeFilters.phone && !l.phone) return false;
+    if (activeFilters.website && !l.website) return false;
+    if (activeFilters.email && !l.email) return false;
+    if (q) {
+      const hay = `${l.title} ${l.address} ${l.phone} ${l.categoryName} ${l.email}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sortCol) doSort();
+  currentPage = 1;
+  renderTable();
+}
+
+function toggleChip(el) {
+  const f = el.dataset.filter;
+  if (!f) return;
+  activeFilters[f] = !activeFilters[f];
+  el.classList.toggle('active');
+  applyFilters();
+}
+
+function clearFilters() {
+  document.getElementById('filterInput').value = '';
+  activeFilters = { phone: false, website: false, email: false };
+  document.querySelectorAll('.chip[data-filter]').forEach(c => c.classList.remove('active'));
+  applyFilters();
+}
+
+function sortTable(col) {
+  if (sortCol === col) {
+    sortAsc = !sortAsc;
+  } else {
+    sortCol = col;
+    sortAsc = true;
+  }
+  doSort();
+  renderTable();
+
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sorted');
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = '';
+  });
+  const activeTh = document.querySelector(`thead th[data-sort="${col}"]`);
+  if (activeTh) {
+    activeTh.classList.add('sorted');
+    const arrow = activeTh.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = sortAsc ? '\u25B2' : '\u25BC';
+  }
+}
+
+function doSort() {
+  filteredLeads.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (typeof va === 'number' && typeof vb === 'number') {
+      return sortAsc ? va - vb : vb - va;
+    }
+    va = (va || '').toString().toLowerCase();
+    vb = (vb || '').toString().toLowerCase();
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+  const pag = document.getElementById('pagination');
+
+  if (currentLeads.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    pag.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = filteredLeads.length === 0 ? 'block' : 'none';
+
+  const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = totalPages || 1;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filteredLeads.slice(start, start + PAGE_SIZE);
+
+  tbody.innerHTML = page.map((l, i) => {
+    const idx = start + i + 1;
+    const rating = l.totalScore ? `<span class="rating-stars">${'\u2605'.repeat(Math.round(l.totalScore))}</span> ${l.totalScore}` : '-';
+    const phone = l.phone ? escHtml(l.phone) : '<span style="color:#444">-</span>';
+    const safeUrl = l.website && /^https?:\/\//i.test(l.website) ? l.website : (l.website ? 'https://' + l.website : '');
+    const website = safeUrl ? `<a href="${escHtml(safeUrl)}" target="_blank" rel="noopener">${truncate(safeUrl.replace(/^https?:\/\/(www\.)?/, ''), 25)}</a>` : '<span style="color:#444">-</span>';
+    const safeMapUrl = l.url && /^https?:\/\//i.test(l.url) ? l.url : '';
+    const mapsBtn = safeMapUrl ? `<a href="${escHtml(safeMapUrl)}" target="_blank" rel="noopener" class="action-btn" title="Open in Google Maps">Maps &#x2197;</a>` : '';
+
+    const curStatus = l.status || 'new';
+    const statusColor = LEAD_STATUSES[curStatus]?.color || '#888';
+    const statusOpts = Object.entries(LEAD_STATUSES).map(([k, v]) =>
+      `<option value="${k}" ${curStatus === k ? 'selected' : ''}>${v.label}</option>`
+    ).join('');
+    const statusHtml = `<select class="status-select" style="color:${statusColor};background:var(--bg-input)" onchange="updateLeadStatus(${l._idx}, this.value, this)">${statusOpts}</select>`;
+
+    return `<tr class="fade-in">
+      <td>${idx}</td>
+      <td title="${escHtml(l.title)}">${escHtml(truncate(l.title, 30))}</td>
+      <td>${escHtml(truncate(l.categoryName, 20))}</td>
+      <td title="${escHtml(l.address)}">${escHtml(truncate(l.address, 35))}</td>
+      <td>${phone}</td>
+      <td>${website}</td>
+      <td>${rating}</td>
+      <td>${l.reviewsCount || '-'}</td>
+      <td>${statusHtml}</td>
+      <td>${mapsBtn}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  if (filteredLeads.length > PAGE_SIZE) {
+    pag.style.display = 'flex';
+    document.getElementById('paginationInfo').textContent = `${start + 1}-${Math.min(start + PAGE_SIZE, filteredLeads.length)} of ${filteredLeads.length}`;
+
+    let btns = '';
+    btns += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+
+    const maxVisible = 7;
+    let startP = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endP = Math.min(totalPages, startP + maxVisible - 1);
+    if (endP - startP < maxVisible - 1) startP = Math.max(1, endP - maxVisible + 1);
+
+    if (startP > 1) btns += `<button class="page-btn" onclick="goPage(1)">1</button><span style="color:#444;padding:0 4px">...</span>`;
+    for (let p = startP; p <= endP; p++) {
+      btns += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+    }
+    if (endP < totalPages) btns += `<span style="color:#444;padding:0 4px">...</span><button class="page-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;
+
+    btns += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+    document.getElementById('paginationBtns').innerHTML = btns;
+  } else {
+    pag.style.display = filteredLeads.length > 0 ? 'flex' : 'none';
+    document.getElementById('paginationInfo').textContent = `${filteredLeads.length} results`;
+    document.getElementById('paginationBtns').innerHTML = '';
+  }
+}
+
+function goPage(p) {
+  const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
+  if (p < 1 || p > totalPages) return;
+  currentPage = p;
+  renderTable();
+  document.querySelector('.table-container').scrollTop = 0;
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+function updateExportButtons() {
+  const has = currentLeads.length > 0;
+  document.getElementById('btnSaveJson').disabled = !has;
+  document.getElementById('btnExportXlsx').disabled = !has;
+  document.getElementById('btnExportCsv').disabled = !has;
+  document.getElementById('btnCopyPhones').disabled = !has;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+async function exportXlsx() {
+  const leads = filteredLeads.length ? filteredLeads : currentLeads;
+  if (!leads.length) return;
+  const category = lastSearchCategory || getCategory() || 'Other';
+  const city = lastSearchCity || document.getElementById('cityInput').value.trim() || 'all';
+  const ok = await ensureBaseFolder();
+  if (!ok) { showToast('Set a folder first', 'warning'); return; }
+  try {
+    const dataDir = await getOrCreateSubDir(baseDirHandle, 'Data');
+    const catDir = await getOrCreateSubDir(dataDir, getCategoryFolderName(category));
+    const xlsxData = leads.map(l => ({
+      Name: l.title, Category: l.categoryName, Address: l.address,
+      Phone: l.phone, Website: l.website, Email: l.email,
+      Rating: l.totalScore, Reviews: l.reviewsCount, 'Google Maps': l.url
+    }));
+    const ws = XLSX.utils.json_to_sheet(xlsxData);
+    ws['!cols'] = [{wch:30},{wch:20},{wch:40},{wch:18},{wch:30},{wch:30},{wch:8},{wch:8},{wch:50}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const fname = `${city.replace(/\s+/g, '-')}_${getTimestamp()}.xlsx`;
+    const fh = await catDir.getFileHandle(fname, { create: true });
+    const w = await fh.createWritable();
+    await w.write(new Blob([buf]));
+    await w.close();
+    showToast(`XLSX saved to Data/${getCategoryFolderName(category)}/${fname}`, 'success');
+  } catch (e) { showToast('XLSX save error: ' + e.message, 'error'); }
+}
+
+async function exportCsv() {
+  const leads = filteredLeads.length ? filteredLeads : currentLeads;
+  if (!leads.length) return;
+  const category = lastSearchCategory || getCategory() || 'Other';
+  const city = lastSearchCity || document.getElementById('cityInput').value.trim() || 'all';
+  const ok = await ensureBaseFolder();
+  if (!ok) { showToast('Set a folder first', 'warning'); return; }
+  try {
+    const dataDir = await getOrCreateSubDir(baseDirHandle, 'Data');
+    const catDir = await getOrCreateSubDir(dataDir, getCategoryFolderName(category));
+    const csv = buildCsvString(leads);
+    const fname = `${city.replace(/\s+/g, '-')}_${getTimestamp()}.csv`;
+    await writeFileToDir(catDir, fname, csv, 'text/csv');
+    showToast(`CSV saved to Data/${getCategoryFolderName(category)}/${fname}`, 'success');
+  } catch (e) { showToast('CSV save error: ' + e.message, 'error'); }
+}
+
+function copyPhones() {
+  const phones = currentLeads.filter(l => l.phone).map(l => l.phone);
+  if (!phones.length) { showToast('No phone numbers to copy', 'warning'); return; }
+  navigator.clipboard.writeText(phones.join(', ')).then(() => {
+    showToast(`Copied ${phones.length} phone numbers`, 'success');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = phones.join(', ');
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast(`Copied ${phones.length} phone numbers`, 'success');
+  });
+}
+
+// ============================================================
+// FILE SYSTEM — DIRECT DISK SAVE
+// ============================================================
+const DB_NAME = 'LeadHunterFS';
+const DB_STORE = 'handles';
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveHandleToIDB(handle) {
+  const db = await openIDB();
+  const tx = db.transaction(DB_STORE, 'readwrite');
+  tx.objectStore(DB_STORE).put(handle, 'baseDir');
+  return new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
+}
+
+async function loadHandleFromIDB() {
+  const db = await openIDB();
+  const tx = db.transaction(DB_STORE, 'readonly');
+  const req = tx.objectStore(DB_STORE).get('baseDir');
+  return new Promise((resolve) => { req.onsuccess = () => resolve(req.result || null); req.onerror = () => resolve(null); });
+}
+
+async function pickBaseFolder() {
+  try {
+    baseDirHandle = await window.showDirectoryPicker({ id: 'leads-data', mode: 'readwrite', startIn: 'documents' });
+    await saveHandleToIDB(baseDirHandle);
+    updateFolderStatus(true);
+    await scanHistoryFromDisk();
+    renderHistory();
+    showToast(`Folder set: ${baseDirHandle.name}/ — ${historyIndex.length} sessions found`, 'success');
+    return true;
+  } catch (e) {
+    if (e.name !== 'AbortError') showToast('Failed to set folder: ' + e.message, 'error');
+    return false;
+  }
+}
+
+async function ensureBaseFolder() {
+  if (baseDirHandle) {
+    try {
+      await baseDirHandle.requestPermission({ mode: 'readwrite' });
+      return true;
+    } catch { baseDirHandle = null; }
+  }
+  // Try restoring from IDB
+  const stored = await loadHandleFromIDB();
+  if (stored) {
+    try {
+      const perm = await stored.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        baseDirHandle = stored;
+        updateFolderStatus(true);
+        return true;
+      }
+    } catch {}
+  }
+  return await pickBaseFolder();
+}
+
+function getCategoryFolderName(category) {
+  return (category || 'Other').trim() + ' Leads';
+}
+
+async function getOrCreateSubDir(parentHandle, name) {
+  return await parentHandle.getDirectoryHandle(name, { create: true });
+}
+
+async function writeFileToDir(dirHandle, filename, content, type) {
+  const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  const blob = new Blob([content], { type });
+  await writable.write(blob);
+  await writable.close();
+}
+
+function buildJsonData(category, city, leads) {
+  return {
+    meta: {
+      tool: 'LeadHunter',
+      searchQuery: `${category} in ${city}`,
+      category,
+      city,
+      fetchedAt: new Date().toISOString(),
+      totalResults: leads.length,
+      withPhone: leads.filter(l => l.phone).length,
+      withWebsite: leads.filter(l => l.website).length,
+      withEmail: leads.filter(l => l.email).length
+    },
+    leads: leads.map(l => ({
+      name: l.title,
+      category: l.categoryName,
+      address: l.address,
+      phone: l.phone || null,
+      website: l.website || null,
+      email: l.email || null,
+      rating: l.totalScore || null,
+      reviewsCount: l.reviewsCount || 0,
+      googleMapsUrl: l.url || null,
+      status: l.status || 'new'
+    }))
+  };
+}
+
+function buildCsvString(leads) {
+  const headers = ['Name','Category','Address','Phone','Website','Email','Rating','Reviews','Google Maps'];
+  const rows = leads.map(l => [
+    l.title, l.categoryName, l.address, l.phone, l.website, l.email,
+    l.totalScore, l.reviewsCount, l.url
+  ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+  return [headers.join(','), ...rows].join('\n');
+}
+
+function getTimestamp() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10) + '_' + d.toTimeString().slice(0, 5).replace(':', '');
+}
+
+async function autoSaveAllFormats(category, city, leads) {
+  const ok = await ensureBaseFolder();
+  if (!ok) {
+    showToast('No folder selected — files not saved to disk', 'warning');
+    return;
+  }
+  try {
+    const dataDir = await getOrCreateSubDir(baseDirHandle, 'Data');
+    const catFolder = getCategoryFolderName(category);
+    const catDir = await getOrCreateSubDir(dataDir, catFolder);
+
+    const ts = getTimestamp();
+    const base = `${city.replace(/\s+/g, '-')}_${ts}`;
+    const jsonFilename = `${base}.json`;
+
+    // JSON
+    const jsonData = buildJsonData(category, city, leads);
+    await writeFileToDir(catDir, jsonFilename, JSON.stringify(jsonData, null, 2), 'application/json');
+
+    // CSV
+    const csv = buildCsvString(leads);
+    await writeFileToDir(catDir, `${base}.csv`, csv, 'text/csv');
+
+    // XLSX
+    const xlsxData = leads.map(l => ({
+      Name: l.title, Category: l.categoryName, Address: l.address,
+      Phone: l.phone, Website: l.website, Email: l.email,
+      Rating: l.totalScore, Reviews: l.reviewsCount, 'Google Maps': l.url
+    }));
+    const ws = XLSX.utils.json_to_sheet(xlsxData);
+    ws['!cols'] = [{wch:30},{wch:20},{wch:40},{wch:18},{wch:30},{wch:30},{wch:8},{wch:8},{wch:50}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
+    const xlsxBuf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const xlsxFileHandle = await catDir.getFileHandle(`${base}.xlsx`, { create: true });
+    const xlsxWritable = await xlsxFileHandle.createWritable();
+    await xlsxWritable.write(new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    await xlsxWritable.close();
+
+    // Track file ref for CRM status updates
+    currentFileRef = { catDirHandle: catDir, filename: jsonFilename };
+
+    showToast(`Saved JSON + CSV + XLSX to Data/${catFolder}/`, 'success');
+  } catch (e) {
+    console.error('Save error:', e);
+    showToast('Error saving files: ' + e.message, 'error');
+  }
+}
+
+async function saveJsonFile() {
+  if (!currentLeads.length) return;
+  const category = lastSearchCategory || getCategory() || 'Other';
+  const city = lastSearchCity || document.getElementById('cityInput').value.trim() || 'all';
+  const leads = filteredLeads.length ? filteredLeads : currentLeads;
+  await autoSaveAllFormats(category, city, leads);
+}
+
+function updateFolderStatus(connected) {
+  const btn = document.getElementById('folderBtn');
+  if (connected) {
+    btn.innerHTML = '&#128194; ' + baseDirHandle.name;
+    btn.title = 'Folder connected: ' + baseDirHandle.name;
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+  } else {
+    btn.innerHTML = '&#128194; Set Folder';
+    btn.title = 'Pick save folder';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  }
+}
+
+// ============================================================
+// CRM — LEAD STATUS
+// ============================================================
+async function updateLeadStatus(idx, newStatus, selectEl) {
+  currentLeads[idx].status = newStatus;
+  const col = LEAD_STATUSES[newStatus]?.color || '#888';
+  if (selectEl) selectEl.style.color = col;
+
+  // Write updated status back to JSON on disk
+  if (currentFileRef) {
+    try {
+      const jsonData = buildJsonData(lastSearchCategory || 'Other', lastSearchCity || 'all', currentLeads);
+      await writeFileToDir(currentFileRef.catDirHandle, currentFileRef.filename, JSON.stringify(jsonData, null, 2), 'application/json');
+    } catch (e) {
+      showToast('Error saving status: ' + e.message, 'error');
+    }
+  }
+}
+
+// ============================================================
+// HISTORY — FROM JSON FILES ON DISK
+// ============================================================
+async function scanHistoryFromDisk() {
+  historyIndex = [];
+  if (!baseDirHandle) return;
+  try {
+    let dataDir;
+    try { dataDir = await baseDirHandle.getDirectoryHandle('Data', { create: false }); }
+    catch { return; }
+
+    for await (const [catName, catHandle] of dataDir.entries()) {
+      if (catHandle.kind !== 'directory') continue;
+      for await (const [fileName, fileHandle] of catHandle.entries()) {
+        if (fileHandle.kind !== 'file' || !fileName.endsWith('.json')) continue;
+        try {
+          const file = await fileHandle.getFile();
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (data.meta) {
+            historyIndex.push({
+              categoryFolder: catName,
+              filename: fileName,
+              meta: data.meta,
+              catDirHandle: catHandle
+            });
+          }
+        } catch {}
+      }
+    }
+    historyIndex.sort((a, b) => (b.meta.fetchedAt || '').localeCompare(a.meta.fetchedAt || ''));
+  } catch (e) {
+    console.error('Scan error:', e);
+  }
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyList');
+
+  if (historyIndex.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:30px 10px"><p style="font-size:12px">No sessions yet</p></div>';
+    return;
+  }
+
+  const groups = {};
+  for (let i = 0; i < historyIndex.length; i++) {
+    const entry = historyIndex[i];
+    const date = (entry.meta.fetchedAt || '').slice(0, 10);
+    if (!groups[date]) groups[date] = [];
+    groups[date].push({ ...entry, idx: i });
+  }
+
+  const dates = Object.keys(groups).sort().reverse();
+  let html = '';
+  for (const date of dates) {
+    html += `<div class="history-date-group">
+      <div class="history-date-label">${formatDate(date)}</div>`;
+    for (const entry of groups[date]) {
+      const isActive = activeSessionId === entry.idx;
+      const time = new Date(entry.meta.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      html += `<div class="history-item ${isActive ? 'active' : ''}" onclick="loadSessionFromDisk(${entry.idx})">
+        <div class="history-item-info">
+          <div class="history-item-title">${escHtml(entry.meta.searchQuery || entry.categoryFolder)}</div>
+          <div class="history-item-meta">${time} &middot; ${entry.meta.totalResults} leads</div>
+        </div>
+        <button class="history-item-delete" onclick="event.stopPropagation();deleteSessionFromDisk(${entry.idx})" title="Delete session">&times;</button>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'Unknown';
+  const d = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dateStr === today.toISOString().slice(0, 10)) return 'Today';
+  if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+async function loadSessionFromDisk(idx) {
+  const entry = historyIndex[idx];
+  if (!entry) { showToast('Session not found', 'error'); return; }
+
+  try {
+    const fileHandle = await entry.catDirHandle.getFileHandle(entry.filename);
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    const leads = data.leads.map(l => ({
+      title: l.name || '',
+      categoryName: l.category || '',
+      address: l.address || '',
+      phone: l.phone || '',
+      website: l.website || '',
+      email: l.email || '',
+      totalScore: l.rating || 0,
+      reviewsCount: l.reviewsCount || 0,
+      url: l.googleMapsUrl || '',
+      status: l.status || 'new'
+    }));
+
+    activeSessionId = idx;
+    currentFileRef = { catDirHandle: entry.catDirHandle, filename: entry.filename };
+    lastSearchCategory = entry.meta.category || '';
+    lastSearchCity = entry.meta.city || '';
+    setLeads(leads);
+    renderHistory();
+    showToast(`Loaded ${leads.length} leads from "${entry.meta.searchQuery}"`, 'success');
+
+    if (window.innerWidth <= 768) toggleSidebar();
+  } catch (e) {
+    showToast('Error loading session: ' + e.message, 'error');
+  }
+}
+
+async function deleteSessionFromDisk(idx) {
+  const entry = historyIndex[idx];
+  if (!entry) return;
+  const baseName = entry.filename.replace('.json', '');
+
+  try {
+    try { await entry.catDirHandle.removeEntry(baseName + '.json'); } catch {}
+    try { await entry.catDirHandle.removeEntry(baseName + '.csv'); } catch {}
+    try { await entry.catDirHandle.removeEntry(baseName + '.xlsx'); } catch {}
+
+    if (activeSessionId === idx) {
+      activeSessionId = null;
+      currentFileRef = null;
+      setLeads([]);
+    }
+
+    await scanHistoryFromDisk();
+    renderHistory();
+    showToast('Session deleted from disk', 'success');
+  } catch (e) {
+    showToast('Error deleting: ' + e.message, 'error');
+  }
+}
+
+function confirmClearHistory() {
+  if (historyIndex.length === 0) {
+    showToast('No history to clear', 'warning');
+    return;
+  }
+  openDialog('Clear All History', 'This will permanently delete all saved session files from disk. This cannot be undone.', async () => {
+    try {
+      for (const entry of historyIndex) {
+        const baseName = entry.filename.replace('.json', '');
+        try { await entry.catDirHandle.removeEntry(baseName + '.json'); } catch {}
+        try { await entry.catDirHandle.removeEntry(baseName + '.csv'); } catch {}
+        try { await entry.catDirHandle.removeEntry(baseName + '.xlsx'); } catch {}
+      }
+      activeSessionId = null;
+      currentFileRef = null;
+      setLeads([]);
+      await scanHistoryFromDisk();
+      renderHistory();
+      showToast('All history cleared', 'success');
+    } catch (e) {
+      showToast('Error clearing: ' + e.message, 'error');
+    }
+  });
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  sidebar.classList.toggle('collapsed');
+  if (window.innerWidth <= 768) {
+    overlay.classList.toggle('visible', !sidebar.classList.contains('collapsed'));
+  }
+}
+
+// ============================================================
+// DIALOG
+// ============================================================
+function openDialog(title, message, onConfirm) {
+  document.getElementById('dialogTitle').textContent = title;
+  document.getElementById('dialogMessage').textContent = message;
+  document.getElementById('dialogOverlay').classList.add('visible');
+  pendingDialogAction = onConfirm;
+}
+
+function closeDialog() {
+  document.getElementById('dialogOverlay').classList.remove('visible');
+  pendingDialogAction = null;
+}
+
+function dialogAction() {
+  if (pendingDialogAction) pendingDialogAction();
+  closeDialog();
+}
+</script>
+</body>
+</html>

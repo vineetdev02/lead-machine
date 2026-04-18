@@ -1,0 +1,18 @@
+{
+  "name": "leadhunter",
+  "version": "2.0.0",
+  "description": "Local lead management CRM with Google Maps scraping",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --watch server.js --ignore Data/ --ignore public/ --ignore .env server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

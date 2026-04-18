@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadHunter CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;--bg2:#141418;--bg3:#1a1a20;--bg4:#202028;
+  --acc:#00ff88;--acc-dim:rgba(0,255,136,.12);--acc-glow:rgba(0,255,136,.3);
+  --txt:#e8e8e8;--muted:#666;--border:#252530;--border2:#1e1e28;
+  --red:#ff5555;--yellow:#ffd93d;--blue:#4dabf7;--purple:#cc5de8;--teal:#20c997;--orange:#fd7e14;
+  --sw:260px;--hh:56px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg3)}
+::-webkit-scrollbar-thumb{background:#2a2a38;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3a3a4a}
+
+/* ── Layout ── */
+.app{display:flex;height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sw);min-width:var(--sw);
+  background:var(--bg2);border-right:1px solid var(--border2);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width .25s,min-width .25s,opacity .25s;
+}
+.sidebar.collapsed{width:0;min-width:0;opacity:0;overflow:hidden}
+.sb-brand{height:var(--hh);display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border2);flex-shrink:0}
+.sb-brand h1{font-size:18px;font-weight:800;color:var(--acc);letter-spacing:-.5px;flex:1}
+.sb-brand .tag{font-size:9px;background:var(--acc-dim);color:var(--acc);border:1px solid rgba(0,255,136,.3);border-radius:4px;padding:2px 6px;letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+.sb-search{padding:10px 12px;border-bottom:1px solid var(--border2);flex-shrink:0}
+.sb-search input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--txt);font-family:'Syne',sans-serif;font-size:12px;padding:7px 10px;outline:none;transition:border-color .2s}
+.sb-search input:focus{border-color:var(--acc)}
+.sb-search input::placeholder{color:var(--muted)}
+.sb-list{flex:1;overflow-y:auto;padding:8px 6px}
+.sb-cat{margin-bottom:4px}
+.sb-cat-header{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;border-radius:5px;transition:background .15s;user-select:none}
+.sb-cat-header:hover{background:var(--bg3)}
+.sb-cat-icon{font-size:11px;color:var(--muted);transition:transform .2s}
+.sb-cat-icon.open{transform:rotate(90deg)}
+.sb-cat-name{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;flex:1}
+.sb-cat-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1px 7px}
+.sb-sessions{display:none;padding-left:4px}
+.sb-sessions.open{display:block}
+.sb-session{display:flex;align-items:center;padding:8px 10px;margin:1px 0;border-radius:5px;cursor:pointer;transition:background .15s;border-left:2px solid transparent}
+.sb-session:hover{background:var(--bg3)}
+.sb-session.active{background:var(--acc-dim);border-left-color:var(--acc)}
+.sb-session-info{flex:1;min-width:0}
+.sb-session-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+.sb-session.active .sb-session-title{color:var(--acc)}
+.sb-session-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px}
+.sb-session-del{background:none;border:none;color:transparent;cursor:pointer;font-size:15px;padding:2px 4px;transition:color .2s;flex-shrink:0}
+.sb-session:hover .sb-session-del{color:var(--muted)}
+.sb-session-del:hover{color:var(--red) !important}
+.sb-footer{padding:12px;border-top:1px solid var(--border2);display:flex;gap:8px;flex-shrink:0}
+.sb-footer .btn{flex:1;justify-content:center;font-size:12px;padding:8px 10px}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:var(--hh);background:var(--bg2);border-bottom:1px solid var(--border2);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.hamburger{background:none;border:none;color:var(--txt);font-size:18px;cursor:pointer;padding:4px;display:flex;align-items:center}
+.topbar-title{font-size:15px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+.topbar-meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.content{flex:1;overflow-y:auto;padding:20px}
+
+/* ── Empty state ── */
+.empty-main{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:var(--muted)}
+.empty-main .icon{font-size:64px;margin-bottom:16px;opacity:.2}
+.empty-main h2{font-size:20px;color:var(--txt);margin-bottom:8px}
+.empty-main p{font-size:13px;margin-bottom:24px;max-width:320px;line-height:1.6}
+
+/* ── Stats bar ── */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;text-align:center}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:var(--acc)}
+.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-top:2px}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;flex-wrap:wrap}
+.filter-wrap{position:relative;flex:1;min-width:180px}
+.filter-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px}
+.filter-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px 6px 30px;outline:none;transition:border-color .2s}
+.filter-input:focus{border-color:var(--acc)}
+.filter-input::placeholder{color:var(--muted)}
+.status-chips{display:flex;gap:4px;flex-wrap:wrap}
+.s-chip{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.s-chip:hover{border-color:var(--muted);color:var(--txt)}
+.s-chip.active{border-color:var(--acc);color:var(--acc);background:var(--acc-dim)}
+.toolbar-actions{display:flex;gap:6px;margin-left:auto}
+
+/* ── Table ── */
+.table-card{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;overflow:hidden}
+.table-scroll{overflow-x:scroll;overflow-y:auto;max-height:calc(100vh - 320px)}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+thead{position:sticky;top:0;z-index:5}
+thead th{background:var(--bg3);padding:10px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+thead th:hover{color:var(--acc)}
+thead th.sorted{color:var(--acc)}
+thead th .arr{margin-left:3px;font-size:9px}
+tbody tr{border-bottom:1px solid var(--border2);transition:background .1s}
+tbody tr:hover{background:var(--acc-dim)}
+tbody td{padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt);max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tbody td.num{color:var(--muted);font-size:10px;width:36px;max-width:36px}
+tbody td.name-cell{max-width:160px;font-weight:500;font-family:'Syne',sans-serif;font-size:12px}
+tbody td.phone-cell,tbody td.email-cell{max-width:140px}
+tbody td.addr-cell{max-width:160px;color:var(--muted)}
+tbody td.notes-cell{max-width:160px;color:var(--muted);cursor:pointer}
+tbody td.notes-cell:hover{color:var(--txt)}
+tbody td.action-cell{width:90px;max-width:90px}
+.action-cell{display:flex;gap:4px;align-items:center}
+.act-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 7px;border-radius:4px;cursor:pointer;font-size:11px;transition:all .15s;white-space:nowrap}
+.act-btn:hover{border-color:var(--acc);color:var(--acc)}
+.act-btn.del:hover{border-color:var(--red);color:var(--red)}
+
+/* ── Status badge ── */
+.status-sel{border-radius:10px;padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;border:1px solid transparent;outline:none;-webkit-appearance:none;appearance:none;background-image:none}
+.status-sel option{background:var(--bg3);color:var(--txt)}
+
+/* ── Follow-up date ── */
+.fup{font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:4px;padding:2px 6px;display:inline-block}
+.fup.overdue{background:rgba(255,85,85,.15);color:var(--red);border:1px solid rgba(255,85,85,.3)}
+.fup.soon{background:rgba(255,217,61,.1);color:var(--yellow);border:1px solid rgba(255,217,61,.3)}
+.fup.ok{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+.fup.scheduled-date{background:rgba(204,93,232,.15);color:var(--purple);border:1px solid rgba(204,93,232,.4);font-weight:600}
+
+/* ── Copy ── */
+.copy-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 3px;opacity:0;transition:opacity .15s}
+tbody tr:hover .copy-btn{opacity:1}
+.copy-btn:hover{color:var(--acc)}
+
+/* ── Pagination ── */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border2);flex-wrap:wrap;gap:8px}
+.pag-left{display:flex;align-items:center;gap:10px}
+.pag-info{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.pag-size{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.pag-size select{background:var(--bg3);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;outline:none}
+.pag-size select:focus{border-color:var(--acc)}
+.pag-btns{display:flex;gap:3px}
+.pg-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all .15s}
+.pg-btn:hover{border-color:var(--acc);color:var(--acc)}
+.pg-btn.active{background:var(--acc);color:#000;border-color:var(--acc)}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+
+/* ── Buttons ── */
+.btn{font-family:'Syne',sans-serif;font-weight:600;font-size:12px;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all .2s}
+.btn-primary{background:var(--acc);color:#000}
+.btn-primary:hover{box-shadow:0 0 16px var(--acc-glow)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.btn-secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--muted)}
+.btn-danger{background:var(--red);color:#000}
+.btn-ghost{background:none;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt)}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid transparent;border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Dropdown menu ── */
+.dropdown{position:relative;display:inline-flex}
+.dropdown-menu{position:absolute;top:calc(100% + 4px);right:0;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:150px;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.dropdown-menu.open{display:block}
+.dropdown-item{display:block;width:100%;text-align:left;background:none;border:none;color:var(--txt);padding:7px 10px;border-radius:4px;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;transition:background .15s}
+.dropdown-item:hover{background:var(--bg3);color:var(--acc)}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;width:100%;max-width:580px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.modal.modal-lg{max-width:720px}
+.modal-head{padding:18px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.modal-head h2{font-size:16px;font-weight:700;flex:1}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:2px;transition:color .15s}
+.modal-close:hover{color:var(--txt)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border2);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+
+/* ── Form ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid.single{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.span2{grid-column:span 2}
+.form-group label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600}
+.form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--txt);font-family:'Syne',sans-serif;font-size:13px;padding:9px 11px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--acc)}
+.form-group input.error,.form-group select.error{border-color:var(--red)}
+.form-group .field-err{font-size:10px;color:var(--red);margin-top:2px}
+.form-group select{cursor:pointer}
+.form-group select option{background:var(--bg3)}
+.form-group textarea{resize:vertical;min-height:70px;font-family:'Syne',sans-serif}
+
+/* ── Status picker ── */
+.status-picker{display:flex;flex-wrap:wrap;gap:6px}
+.status-opt{padding:5px 12px;border-radius:12px;font-size:11px;font-family:'JetBrains Mono',monospace;border:1px solid var(--border);cursor:pointer;transition:all .15s;font-weight:600;background:var(--bg3)}
+.status-opt:hover{filter:brightness(1.2)}
+.status-opt.sel{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px currentColor}
+
+/* ── Progress bar ── */
+.progress-wrap{display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:16px;align-items:center;gap:10px}
+.progress-wrap.visible{display:flex}
+.prog-dot{width:10px;height:10px;border-radius:50%;background:var(--yellow);animation:pulse 1.2s ease-in-out infinite;flex-shrink:0}
+.prog-dot.ok{background:var(--acc);animation:none}
+.prog-dot.fail{background:var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.prog-text{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);flex:1}
+.prog-text b{color:var(--acc)}
+
+/* ── Keyword tags ── */
+.kw-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:42px;cursor:text;transition:border-color .2s}
+.kw-wrap:focus-within{border-color:var(--acc)}
+.kw-wrap.error{border-color:var(--red)}
+.kw-tag{display:inline-flex;align-items:center;gap:3px;background:var(--acc-dim);border:1px solid rgba(0,255,136,.4);color:var(--acc);border-radius:4px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:11px}
+.kw-tag button{background:none;border:none;color:var(--acc);cursor:pointer;font-size:13px;line-height:1;opacity:.7;padding:0 1px}
+.kw-tag button:hover{opacity:1}
+.kw-input{background:none;border:none;color:var(--txt);font-family:'Syne',sans-serif;font-size:13px;outline:none;min-width:120px;flex:1;padding:2px 4px}
+.kw-input::placeholder{color:var(--muted)}
+.kw-presets{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.kw-pre{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;transition:all .15s}
+.kw-pre:hover{border-color:var(--acc);color:var(--acc)}
+
+/* ── Toast ── */
+.toasts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;align-items:center;gap:8px;animation:slideIn .25s ease;max-width:340px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.toast.success{border-color:var(--acc)}
+.toast.error{border-color:var(--red)}
+.toast.warning{border-color:var(--yellow)}
+@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── Confirm dialog ── */
+.confirm-box{max-width:380px}
+.confirm-box .modal-body{padding:20px}
+.confirm-box p{color:var(--muted);font-size:13px;line-height:1.6}
+
+/* ── Settings ── */
+.token-row{display:flex;gap:8px;align-items:center}
+.token-row input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:12px;padding:9px 11px;outline:none;transition:border-color .2s}
+.token-row input:focus{border-color:var(--acc)}
+.token-status{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px}
+.token-status.ok{color:var(--acc)}
+.token-status.missing{color:var(--yellow)}
+
+/* ── Empty table state ── */
+.tbl-empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.tbl-empty .icon{font-size:36px;margin-bottom:10px;opacity:.3;display:block}
+.tbl-empty p{font-size:13px}
+
+/* ── No-sessions state ── */
+.no-sessions{text-align:center;padding:32px 10px;color:var(--muted);font-size:12px}
+
+/* ── Generate Page ── */
+.gen-page{max-width:780px;margin:0 auto;padding:4px 0 40px}
+.gen-page-header{margin-bottom:20px}
+.gen-page-header h2{font-size:22px;font-weight:800;color:var(--txt);margin-bottom:4px}
+.gen-page-header p{color:var(--muted);font-size:13px}
+.gen-section{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:18px 20px;margin-bottom:14px}
+.gen-section-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.gen-section-title .badge{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:9px;color:var(--muted);letter-spacing:.4px}
+.gen-section-title .badge.req{border-color:rgba(0,255,136,.3);color:var(--acc);background:var(--acc-dim)}
+.gen-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gen-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.gen-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.gen-footer-info{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.gen-big-btn{padding:12px 32px;font-size:14px;border-radius:8px}
+.optional-toggle{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;padding:0;display:flex;align-items:center;gap:4px;transition:color .15s}
+.optional-toggle:hover{color:var(--txt)}
+.optional-section{display:none}
+.optional-section.open{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <h1>LeadHunter</h1>
+      <span class="tag">CRM</span>
+    </div>
+    <div class="sb-search">
+      <input id="sidebarSearch" placeholder="Search sessions..." oninput="renderSidebar()">
+    </div>
+    <div class="sb-list" id="sessionList"></div>
+    <div class="sb-footer">
+      <button class="btn btn-secondary" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn btn-primary" onclick="openGeneratePage()">+ Generate</button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
+        <div>
+          <div class="topbar-title" id="topTitle">LeadHunter CRM</div>
+          <div class="topbar-meta" id="topMeta">Select a session from the sidebar</div>
+        </div>
+      </div>
+      <div class="topbar-right" id="topActions" style="display:none">
+        <button class="btn btn-secondary" onclick="openAddLead()">+ Add Lead</button>
+        <div class="dropdown" id="exportDrop">
+          <button class="btn btn-secondary" onclick="toggleDropdown('exportDrop')">↓ Export ▾</button>
+          <div class="dropdown-menu" id="exportDropMenu">
+            <button class="dropdown-item" onclick="exportFile('csv');closeDropdowns()">CSV</button>
+            <button class="dropdown-item" onclick="exportFile('xlsx');closeDropdowns()">Excel (XLSX)</button>
+            <button class="dropdown-item" onclick="copyPhones();closeDropdowns()">Copy Phones</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="mainContent">
+
+      <!-- Empty state -->
+      <div class="empty-main" id="emptyMain">
+        <div class="icon">🎯</div>
+        <h2>No session selected</h2>
+        <p>Pick a session from the sidebar, or generate fresh leads from Google Maps.</p>
+        <button class="btn btn-primary" onclick="openGeneratePage()">+ Generate Leads</button>
+      </div>
+
+      <!-- Session view -->
+      <div id="sessionView" style="display:none">
+        <div class="stats-bar" id="statsBar"></div>
+        <div class="toolbar">
+          <div class="filter-wrap">
+            <input class="filter-input" id="filterInput" placeholder="Filter by name, phone, email, address..." oninput="applyFilters()">
+          </div>
+          <div class="status-chips" id="statusChips"></div>
+          <div class="toolbar-actions">
+            <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="clearFilters()">Clear</button>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th data-col="name" onclick="sortBy('name')">Name <span class="arr"></span></th>
+                  <th data-col="phone" onclick="sortBy('phone')">Phone <span class="arr"></span></th>
+                  <th data-col="email" onclick="sortBy('email')">Email <span class="arr"></span></th>
+                  <th data-col="address" onclick="sortBy('address')">Address <span class="arr"></span></th>
+                  <th data-col="status" onclick="sortBy('status')">Status <span class="arr"></span></th>
+                  <th data-col="followUpDate" onclick="sortBy('followUpDate')">Follow-up / Scheduled <span class="arr"></span></th>
+                  <th>Notes</th>
+                  <th style="width:90px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+          <div id="tblEmpty" class="tbl-empty" style="display:none">
+            <span class="icon">🔍</span>
+            <p>No leads match your filters</p>
+          </div>
+          <div class="pagination" id="pagination">
+            <div class="pag-left">
+              <div class="pag-size">
+                Rows:
+                <select id="pageSizeSelect" onchange="changePageSize(this.value)">
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div class="pag-info" id="pagInfo"></div>
+            </div>
+            <div class="pag-btns" id="pagBtns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate Page -->
+      <div id="generateView" style="display:none">
+        <div class="gen-page">
+          <div class="gen-page-header">
+            <h2>Generate Leads</h2>
+            <p>Search Google Maps and import business leads directly into your CRM</p>
+          </div>
+
+          <!-- Progress -->
+          <div class="progress-wrap" id="genProgress">
+            <div class="prog-dot" id="genDot"></div>
+            <div class="prog-text" id="genText"></div>
+          </div>
+
+          <div id="genFormWrap">
+            <!-- Required fields -->
+            <div class="gen-section">
+              <div class="gen-section-title">
+                Search Query
+                <span class="badge req">Required</span>
+              </div>
+              <div class="form-group" style="margin-bottom:14px">
+                <label>Keywords <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0">— press Enter or comma to add multiple</span></label>
+                <div class="kw-wrap" id="kwWrap" onclick="document.getElementById('kwInput').focus()">
+                  <input id="kwInput" class="kw-input" placeholder="e.g. Car Rental, Tour Operator">
+                </div>
+                <div id="kwErr" class="field-err" style="display:none">Add at least one keyword</div>
+                <div class="kw-presets">
+                  <button class="kw-pre" onclick="kwAdd('Travel Agency')">Travel Agency</button>
+                  <button class="kw-pre" onclick="kwAdd('Tour Operator')">Tour Operator</button>
+                  <button class="kw-pre" onclick="kwAdd('Car Rental')">Car Rental</button>
+                  <button class="kw-pre" onclick="kwAdd('Self Drive Car Rental')">Self Drive</button>
+                  <button class="kw-pre" onclick="kwAdd('Tempo Traveller Rental')">Tempo Traveller</button>
+                  <button class="kw-pre" onclick="kwAdd('Wedding Car Rental')">Wedding Car</button>
+                  <button class="kw-pre" onclick="kwAdd('Taxi Service')">Taxi</button>
+                  <button class="kw-pre" onclick="kwAdd('Hotel')">Hotel</button>
+                  <button class="kw-pre" onclick="kwAdd('Restaurant')">Restaurant</button>
+                  <button class="kw-pre" onclick="kwAdd('Real Estate Agent')">Real Estate</button>
+                  <button class="kw-pre" onclick="kwAdd('Driving School')">Driving School</button>
+                </div>
+              </div>
+              <div class="gen-grid-2">
+                <div class="form-group">
+                  <label>City *</label>
+                  <input type="text" id="genCity" placeholder="e.g. Rajkot, Junagadh, Surat">
+                  <div id="cityErr" class="field-err" style="display:none">City is required</div>
+                </div>
+                <div class="form-group">
+                  <label>Country</label>
+                  <input type="text" id="genCountry" value="India" placeholder="India">
+                </div>
+              </div>
+            </div>
+
+            <!-- Search settings -->
+            <div class="gen-section">
+              <div class="gen-section-title">Search Settings</div>
+              <div class="gen-grid-3">
+                <div class="form-group">
+                  <label>Max Results / Keyword</label>
+                  <select id="genMax">
+                    <option value="20">20 — Quick test</option>
+                    <option value="50">50 — Small city</option>
+                    <option value="100" selected>100 — Standard</option>
+                    <option value="200">200 — Large city</option>
+                    <option value="500">500 — Metro</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Search Coverage</label>
+                  <select id="genZoom">
+                    <option value="13">Tight (city center)</option>
+                    <option value="12">Normal (city)</option>
+                    <option value="11" selected>Wide (city + nearby)</option>
+                    <option value="10">Very Wide (district)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Session Name <span style="text-transform:none;letter-spacing:0;font-size:9px">(optional)</span></label>
+                  <input type="text" id="genSessionName" placeholder="Auto-generated if blank">
+                </div>
+              </div>
+            </div>
+
+            <!-- Optional filters -->
+            <div class="gen-section">
+              <div class="gen-section-title" style="margin-bottom:10px">
+                Result Filters
+                <span class="badge">Optional</span>
+                <button class="optional-toggle" id="optToggle" onclick="toggleOptional()">
+                  <span id="optToggleTxt">▶ Show filters</span>
+                </button>
+              </div>
+              <div class="optional-section" id="optionalFilters">
+                <div class="gen-grid-3">
+                  <div class="form-group">
+                    <label>Minimum Rating</label>
+                    <select id="genMinRating">
+                      <option value="0" selected>Any rating</option>
+                      <option value="3">3.0 and above</option>
+                      <option value="3.5">3.5 and above</option>
+                      <option value="4">4.0 and above</option>
+                      <option value="4.5">4.5 and above</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Minimum Reviews</label>
+                    <select id="genMinReviews">
+                      <option value="0" selected>Any</option>
+                      <option value="5">5+</option>
+                      <option value="10">10+</option>
+                      <option value="25">25+</option>
+                      <option value="50">50+</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Has Phone Number</label>
+                    <select id="genRequirePhone">
+                      <option value="0" selected>Any</option>
+                      <option value="1">Phone required</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="gen-footer">
+              <div class="gen-footer-info" id="genFooterInfo">
+                Results are deduplicated automatically
+              </div>
+              <button class="btn btn-primary gen-big-btn" id="genBtn" onclick="startGenerate()">
+                <span id="genBtnTxt">🔍 Search Google Maps</span>
+                <span class="spinner" id="genSpinner" style="display:none"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div>
+</div>
+
+<!-- ── Lead Modal (Add / Edit) ── -->
+<div class="modal-overlay" id="leadModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2 id="leadModalTitle">Add Lead</h2>
+      <button class="modal-close" onclick="closeModal('leadModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="lName" placeholder="Business name">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="lCategory" placeholder="e.g. Car Rental">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="lPhone" placeholder="+91 99999 99999">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="lEmail" placeholder="email@example.com">
+        </div>
+        <div class="form-group span2">
+          <label>Website</label>
+          <input type="url" id="lWebsite" placeholder="https://...">
+        </div>
+        <div class="form-group span2">
+          <label>Address</label>
+          <input type="text" id="lAddress" placeholder="Full address">
+        </div>
+        <div class="form-group">
+          <label>Google Maps URL</label>
+          <input type="url" id="lMaps" placeholder="https://maps.google.com/...">
+        </div>
+        <div class="form-group">
+          <label>Rating</label>
+          <input type="number" id="lRating" placeholder="4.5" step="0.1" min="0" max="5">
+        </div>
+        <div class="form-group span2">
+          <label>Status</label>
+          <div class="status-picker" id="statusPicker"></div>
+        </div>
+        <div class="form-group">
+          <label>Follow-up / Scheduled Date</label>
+          <input type="date" id="lFollowUp">
+        </div>
+        <div class="form-group">
+          <label>Last Contacted</label>
+          <input type="date" id="lLastContact">
+        </div>
+        <div class="form-group span2">
+          <label>Notes</label>
+          <textarea id="lNotes" placeholder="Call notes, contact history, deal info..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('leadModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLead()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Apify API Token</label>
+        <div class="token-row">
+          <input type="password" id="tokenInput" placeholder="apify_api_...">
+          <button class="btn btn-ghost" onclick="toggleTokenVis()">👁</button>
+        </div>
+        <div class="token-status" id="tokenStatus"></div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.6">
+        Token is saved to <code style="color:var(--acc)">.env</code> on disk — never enters the browser.
+        Get yours at <strong style="color:var(--txt)">apify.com → Settings → Integrations</strong>.
+      </p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Close</button>
+      <button class="btn btn-primary" onclick="saveToken()">Save Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Modal ── -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-box">
+    <div class="modal-head">
+      <h2 id="confirmTitle">Confirm</h2>
+      <button class="modal-close" onclick="closeModal('confirmModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMsg"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ── -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const STATUSES = {
+  'new':            { label: 'New',            color: '#888' },
+  'contacted':      { label: 'Contacted',      color: '#4dabf7' },
+  'interested':     { label: 'Interested',     color: '#20c997' },
+  'follow-up':      { label: 'Follow-up',      color: '#ffd93d' },
+  'scheduled':      { label: 'Scheduled',      color: '#cc5de8' },
+  'callback':       { label: 'Callback',       color: '#74c0fc' },
+  'won':            { label: 'Won',            color: '#00ff88' },
+  'not-interested': { label: 'Not Interested', color: '#ff8787' },
+  'too-expensive':  { label: 'Too Expensive',  color: '#fd7e14' },
+  'already-has':    { label: 'Already Has',    color: '#868e96' },
+  'wrong-lead':     { label: 'Wrong Lead',     color: '#f03e3e' },
+  'lost':           { label: 'Lost',           color: '#ff5555' },
+  'no-reply':       { label: 'No Reply',       color: '#aaa' }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let allSessions = [];
+let curRef = null;
+let curLeads = [];
+let filtered = [];
+let page = 1;
+let pageSize = 10;
+let sortCol = 'name';
+let sortAsc = true;
+let activeStatus = 'all';
+let filterText = '';
+let editingIdx = null;
+let kwList = [];
+let pollTimer = null;
+
+// ═══════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function encRef(ref) {
+  return `${encodeURIComponent(ref.category)}/${encodeURIComponent(ref.filename)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadSessions();
+  await loadTokenStatus();
+  initKeywordInput();
+  initStatusPicker();
+  initStatusChips();
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown')) closeDropdowns();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAllModals();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// VIEW MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+function showView(view) {
+  document.getElementById('emptyMain').style.display = 'none';
+  document.getElementById('sessionView').style.display = 'none';
+  document.getElementById('generateView').style.display = 'none';
+  document.getElementById('topActions').style.display = 'none';
+  if (view === 'empty') {
+    document.getElementById('emptyMain').style.display = 'flex';
+    document.getElementById('topTitle').textContent = 'LeadHunter CRM';
+    document.getElementById('topMeta').textContent = 'Select a session from the sidebar';
+  } else if (view === 'session') {
+    document.getElementById('sessionView').style.display = 'block';
+    document.getElementById('topActions').style.display = 'flex';
+  } else if (view === 'generate') {
+    document.getElementById('generateView').style.display = 'block';
+    document.getElementById('topTitle').textContent = 'Generate Leads';
+    document.getElementById('topMeta').textContent = 'Search Google Maps for new leads';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SESSIONS
+// ═══════════════════════════════════════════════════════════
+async function loadSessions() {
+  try {
+    allSessions = await api('GET', '/api/sessions');
+    renderSidebar();
+  } catch (e) { toast('Failed to load sessions: ' + e.message, 'error'); }
+}
+
+function renderSidebar() {
+  const q = document.getElementById('sidebarSearch').value.toLowerCase();
+  const list = document.getElementById('sessionList');
+
+  const visible = allSessions.filter(s =>
+    !q || (s.meta.searchQuery || '').toLowerCase().includes(q) ||
+    (s.meta.city || '').toLowerCase().includes(q) ||
+    s.category.toLowerCase().includes(q)
+  );
+
+  if (!visible.length) {
+    list.innerHTML = `<div class="no-sessions">${q ? 'No results' : 'No sessions yet.<br>Click Generate to start.'}</div>`;
+    return;
+  }
+
+  const groups = {};
+  for (const s of visible) {
+    if (!groups[s.category]) groups[s.category] = [];
+    groups[s.category].push(s);
+  }
+
+  const isActive = (s) => curRef && s.category === curRef.category && s.filename === curRef.filename;
+  const anyActive = (arr) => arr.some(isActive);
+
+  list.innerHTML = Object.entries(groups).map(([cat, sessions]) => {
+    const open = anyActive(sessions) || !!q;
+    return `<div class="sb-cat">
+      <div class="sb-cat-header" onclick="toggleCat(this)">
+        <span class="sb-cat-icon ${open ? 'open' : ''}">▶</span>
+        <span class="sb-cat-name">${esc(cat.replace(' Leads', ''))}</span>
+        <span class="sb-cat-count">${sessions.length}</span>
+      </div>
+      <div class="sb-sessions ${open ? 'open' : ''}">
+        ${sessions.map(s => {
+          const date = new Date(s.meta.fetchedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+          const city = s.meta.city || s.filename.split('_')[0];
+          return `<div class="sb-session ${isActive(s) ? 'active' : ''}"
+            onclick="openSession('${esc(s.category)}','${esc(s.filename)}')">
+            <div class="sb-session-info">
+              <div class="sb-session-title">${esc(city)}</div>
+              <div class="sb-session-meta">${date} · ${s.meta.totalResults} leads</div>
+            </div>
+            <button class="sb-session-del" onclick="event.stopPropagation();confirmDeleteSession('${esc(s.category)}','${esc(s.filename)}')" title="Delete">×</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCat(el) {
+  const icon = el.querySelector('.sb-cat-icon');
+  const sessions = el.nextElementSibling;
+  icon.classList.toggle('open');
+  sessions.classList.toggle('open');
+}
+
+async function openSession(cat, file) {
+  curRef = { category: cat, filename: file };
+  try {
+    const data = await api('GET', `/api/sessions/${encRef(curRef)}`);
+    curLeads = data.leads || [];
+    document.getElementById('topTitle').textContent = data.meta.searchQuery || cat;
+    document.getElementById('topMeta').textContent =
+      `${data.meta.city || ''} · ${new Date(data.meta.fetchedAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}`;
+    showView('session');
+    clearFilters();
+    renderSidebar();
+  } catch (e) { toast('Failed to load session: ' + e.message, 'error'); }
+}
+
+function refreshSession() {
+  if (curRef) openSession(curRef.category, curRef.filename);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════════════════════
+function applyFilters() {
+  filterText = (document.getElementById('filterInput').value || '').toLowerCase();
+  filtered = curLeads.filter((l, i) => {
+    l._idx = i;
+    if (activeStatus !== 'all' && l.status !== activeStatus) return false;
+    if (filterText) {
+      const hay = `${l.name} ${l.phone} ${l.email} ${l.address} ${l.notes} ${l.category}`.toLowerCase();
+      if (!hay.includes(filterText)) return false;
+    }
+    return true;
+  });
+  doSort();
+  page = 1;
+  renderStats();
+  renderTable();
+}
+
+function clearFilters() {
+  document.getElementById('filterInput').value = '';
+  filterText = '';
+  activeStatus = 'all';
+  document.querySelectorAll('.s-chip').forEach(c => c.classList.remove('active'));
+  document.querySelector('.s-chip[data-s="all"]')?.classList.add('active');
+  applyFilters();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; }
+  doSort();
+  renderTable();
+  document.querySelectorAll('thead th').forEach(th => {
+    const arr = th.querySelector('.arr');
+    if (!arr) return;
+    th.classList.toggle('sorted', th.dataset.col === col);
+    arr.textContent = th.dataset.col === col ? (sortAsc ? ' ▲' : ' ▼') : '';
+  });
+}
+
+function doSort() {
+  filtered.sort((a, b) => {
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (typeof va === 'number' && typeof vb === 'number') return sortAsc ? va - vb : vb - va;
+    return sortAsc
+      ? va.toString().localeCompare(vb.toString())
+      : vb.toString().localeCompare(va.toString());
+  });
+}
+
+function renderStats() {
+  const l = curLeads;
+  const won = l.filter(x => x.status === 'won').length;
+  const interested = l.filter(x => x.status === 'interested' || x.status === 'scheduled').length;
+  document.getElementById('statsBar').innerHTML = [
+    ['Total Leads', l.length],
+    ['With Phone', l.filter(x => x.phone).length],
+    ['Interested', interested],
+    ['Won', won]
+  ].map(([lbl, val]) => `<div class="stat-card"><div class="stat-val">${val}</div><div class="stat-lbl">${lbl}</div></div>`).join('');
+}
+
+function changePageSize(n) {
+  pageSize = parseInt(n);
+  page = 1;
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('tblEmpty');
+  const pag = document.getElementById('pagination');
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    pag.style.display = 'flex';
+    document.getElementById('pagInfo').textContent = '0 leads';
+    document.getElementById('pagBtns').innerHTML = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+  pag.style.display = 'flex';
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / pageSize);
+  if (page > totalPages) page = totalPages;
+  const start = (page - 1) * pageSize;
+  const slice = filtered.slice(start, start + pageSize);
+
+  tbody.innerHTML = slice.map((l, i) => {
+    const idx = l._idx;
+    const num = start + i + 1;
+    const st = STATUSES[l.status] || STATUSES['new'];
+    const stOpts = Object.entries(STATUSES).map(([k, v]) =>
+      `<option value="${k}" ${l.status === k ? 'selected' : ''}>${v.label}</option>`).join('');
+
+    // Follow-up / scheduled date display
+    let fupHtml = '<span style="color:var(--muted)">—</span>';
+    if (l.followUpDate) {
+      const diff = Math.ceil((new Date(l.followUpDate) - Date.now()) / 86400000);
+      let cls = diff < 0 ? 'overdue' : diff <= 3 ? 'soon' : 'ok';
+      let prefix = '';
+      if (l.status === 'scheduled') { cls = 'scheduled-date'; prefix = '📅 '; }
+      fupHtml = `<span class="fup ${cls}" title="${l.status === 'scheduled' ? 'Scheduled on' : 'Follow-up'}: ${l.followUpDate}">${prefix}${l.followUpDate}</span>`;
+    } else if (l.status === 'scheduled') {
+      fupHtml = `<span class="fup scheduled-date" style="opacity:.6">📅 Set date</span>`;
+    }
+
+    const phone = l.phone
+      ? `${esc(l.phone)} <button class="copy-btn" onclick="copyText('${esc(l.phone)}')" title="Copy">⧉</button>`
+      : '<span style="color:var(--muted)">—</span>';
+    const email = l.email
+      ? `${esc(trunc(l.email, 22))} <button class="copy-btn" onclick="copyText('${esc(l.email)}')" title="Copy">⧉</button>`
+      : '<span style="color:var(--muted)">—</span>';
+    const notes = l.notes ? esc(trunc(l.notes, 38)) : '<span style="color:var(--muted)">—</span>';
+    const mapsBtn = l.googleMapsUrl
+      ? `<a href="${esc(l.googleMapsUrl)}" target="_blank" rel="noopener" class="act-btn" title="Open Maps">↗</a>`
+      : '';
+
+    return `<tr>
+      <td class="num">${num}</td>
+      <td class="name-cell" title="${esc(l.name)}">${esc(trunc(l.name, 28))}</td>
+      <td class="phone-cell">${phone}</td>
+      <td class="email-cell" title="${esc(l.email || '')}">${email}</td>
+      <td class="addr-cell" title="${esc(l.address)}">${esc(trunc(l.address, 28))}</td>
+      <td>
+        <select class="status-sel" style="color:${st.color};border-color:${st.color}20;background:${st.color}18"
+          onchange="quickStatus(${idx}, this.value, this)">${stOpts}</select>
+      </td>
+      <td>${fupHtml}</td>
+      <td class="notes-cell" title="${esc(l.notes || '')}" onclick="openEditLead(${idx})">${notes}</td>
+      <td>
+        <div class="action-cell">
+          <button class="act-btn" onclick="openEditLead(${idx})" title="Edit">✏</button>
+          ${mapsBtn}
+          <button class="act-btn del" onclick="confirmDeleteLead(${idx})" title="Delete">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination controls
+  document.getElementById('pagInfo').textContent =
+    total <= pageSize
+      ? `${total} lead${total !== 1 ? 's' : ''}`
+      : `${start + 1}–${Math.min(start + pageSize, total)} of ${total}`;
+
+  if (total > pageSize) {
+    let btns = `<button class="pg-btn" onclick="goPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>«</button>`;
+    const maxV = 7;
+    let sp = Math.max(1, page - Math.floor(maxV / 2));
+    let ep = Math.min(totalPages, sp + maxV - 1);
+    if (ep - sp < maxV - 1) sp = Math.max(1, ep - maxV + 1);
+    if (sp > 1) btns += `<button class="pg-btn" onclick="goPage(1)">1</button><span style="color:var(--muted);padding:0 4px">…</span>`;
+    for (let p2 = sp; p2 <= ep; p2++)
+      btns += `<button class="pg-btn ${p2 === page ? 'active' : ''}" onclick="goPage(${p2})">${p2}</button>`;
+    if (ep < totalPages) btns += `<span style="color:var(--muted);padding:0 4px">…</span><button class="pg-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;
+    btns += `<button class="pg-btn" onclick="goPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
+    document.getElementById('pagBtns').innerHTML = btns;
+  } else {
+    document.getElementById('pagBtns').innerHTML = '';
+  }
+}
+
+function goPage(p) {
+  const tp = Math.ceil(filtered.length / pageSize);
+  if (p < 1 || p > tp) return;
+  page = p;
+  renderTable();
+  document.querySelector('.table-scroll')?.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS CHIPS
+// ═══════════════════════════════════════════════════════════
+function initStatusChips() {
+  const wrap = document.getElementById('statusChips');
+  const chips = [['all', 'All'], ...Object.entries(STATUSES).map(([k, v]) => [k, v.label])];
+  wrap.innerHTML = chips.map(([k, l]) =>
+    `<span class="s-chip ${k === 'all' ? 'active' : ''}" data-s="${k}" onclick="setStatus('${k}',this)">${l}</span>`
+  ).join('');
+}
+
+function setStatus(s, el) {
+  activeStatus = s;
+  document.querySelectorAll('.s-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEAD CRUD
+// ═══════════════════════════════════════════════════════════
+async function quickStatus(idx, status, el) {
+  if (!curRef) return;
+  const st = STATUSES[status] || STATUSES['new'];
+  el.style.color = st.color;
+  el.style.borderColor = st.color + '20';
+  el.style.background = st.color + '18';
+  curLeads[idx].status = status;
+  try {
+    await api('PATCH', `/api/sessions/${encRef(curRef)}/leads/${idx}`, { status });
+  } catch (e) { toast('Save failed: ' + e.message, 'error'); }
+}
+
+function openAddLead() {
+  editingIdx = null;
+  document.getElementById('leadModalTitle').textContent = 'Add Lead';
+  clearLeadForm();
+  setStatusPicker('new');
+  openModal('leadModal');
+}
+
+function openEditLead(idx) {
+  editingIdx = idx;
+  const l = curLeads[idx];
+  document.getElementById('leadModalTitle').textContent = 'Edit Lead';
+  document.getElementById('lName').value = l.name || '';
+  document.getElementById('lCategory').value = l.category || '';
+  document.getElementById('lPhone').value = l.phone || '';
+  document.getElementById('lEmail').value = l.email || '';
+  document.getElementById('lWebsite').value = l.website || '';
+  document.getElementById('lAddress').value = l.address || '';
+  document.getElementById('lMaps').value = l.googleMapsUrl || '';
+  document.getElementById('lRating').value = l.rating || '';
+  document.getElementById('lFollowUp').value = l.followUpDate || '';
+  document.getElementById('lLastContact').value = l.lastContactedAt || '';
+  document.getElementById('lNotes').value = l.notes || '';
+  setStatusPicker(l.status || 'new');
+  openModal('leadModal');
+}
+
+async function saveLead() {
+  const name = document.getElementById('lName').value.trim();
+  if (!name) { toast('Name is required', 'warning'); return; }
+
+  const payload = {
+    name,
+    category: document.getElementById('lCategory').value.trim(),
+    phone: document.getElementById('lPhone').value.trim() || null,
+    email: document.getElementById('lEmail').value.trim() || null,
+    website: document.getElementById('lWebsite').value.trim() || null,
+    address: document.getElementById('lAddress').value.trim(),
+    googleMapsUrl: document.getElementById('lMaps').value.trim() || null,
+    rating: parseFloat(document.getElementById('lRating').value) || null,
+    status: getStatusPicker(),
+    followUpDate: document.getElementById('lFollowUp').value || null,
+    lastContactedAt: document.getElementById('lLastContact').value || null,
+    notes: document.getElementById('lNotes').value.trim()
+  };
+
+  try {
+    if (editingIdx === null) {
+      await api('POST', `/api/sessions/${encRef(curRef)}/leads`, payload);
+      toast('Lead added', 'success');
+    } else {
+      await api('PATCH', `/api/sessions/${encRef(curRef)}/leads/${editingIdx}`, payload);
+      toast('Lead saved', 'success');
+    }
+    closeModal('leadModal');
+    await refreshSession();
+  } catch (e) { toast('Save failed: ' + e.message, 'error'); }
+}
+
+function confirmDeleteLead(idx) {
+  const l = curLeads[idx];
+  showConfirm('Delete Lead', `Delete "${l.name}"? This cannot be undone.`, async () => {
+    try {
+      await api('DELETE', `/api/sessions/${encRef(curRef)}/leads/${idx}`);
+      toast('Lead deleted', 'success');
+      await refreshSession();
+    } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS PICKER (modal)
+// ═══════════════════════════════════════════════════════════
+function initStatusPicker() {
+  const wrap = document.getElementById('statusPicker');
+  wrap.innerHTML = Object.entries(STATUSES).map(([k, v]) =>
+    `<span class="status-opt" data-s="${k}" style="color:${v.color};border-color:${v.color}30;background:${v.color}15"
+      onclick="setStatusPicker('${k}')">${v.label}</span>`
+  ).join('');
+}
+
+function setStatusPicker(s) {
+  document.querySelectorAll('.status-opt').forEach(el => el.classList.toggle('sel', el.dataset.s === s));
+}
+
+function getStatusPicker() {
+  return document.querySelector('.status-opt.sel')?.dataset.s || 'new';
+}
+
+function clearLeadForm() {
+  ['lName','lCategory','lPhone','lEmail','lWebsite','lAddress','lMaps','lRating','lFollowUp','lLastContact','lNotes']
+    .forEach(id => document.getElementById(id).value = '');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SESSION DELETE
+// ═══════════════════════════════════════════════════════════
+function confirmDeleteSession(cat, file) {
+  const ref = cat && file ? { category: cat, filename: file } : curRef;
+  if (!ref) return;
+  showConfirm('Delete Session', 'Delete this session and all its files (JSON, CSV, XLSX)?', async () => {
+    try {
+      await api('DELETE', `/api/sessions/${encodeURIComponent(ref.category)}/${encodeURIComponent(ref.filename)}`);
+      toast('Session deleted', 'success');
+      if (curRef && ref.category === curRef.category && ref.filename === curRef.filename) {
+        curRef = null;
+        curLeads = [];
+        showView('empty');
+      }
+      await loadSessions();
+    } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════
+function exportFile(fmt) {
+  if (!curRef) return;
+  window.open(`/api/export/${encRef(curRef)}/${fmt}`, '_blank');
+}
+
+async function copyPhones() {
+  if (!curRef) return;
+  try {
+    const data = await api('GET', `/api/export/${encRef(curRef)}/phones`);
+    if (!data.phones.length) { toast('No phone numbers in this session', 'warning'); return; }
+    await navigator.clipboard.writeText(data.phones.join('\n'));
+    toast(`Copied ${data.phones.length} phone numbers`, 'success');
+  } catch (e) { toast('Copy failed: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// GENERATE PAGE
+// ═══════════════════════════════════════════════════════════
+function openGeneratePage() {
+  kwList = [];
+  kwRender();
+  document.getElementById('genProgress').classList.remove('visible');
+  document.getElementById('genFormWrap').style.display = 'block';
+  document.getElementById('genBtn').disabled = false;
+  document.getElementById('genBtnTxt').textContent = '🔍 Search Google Maps';
+  document.getElementById('genSpinner').style.display = 'none';
+  document.getElementById('kwErr').style.display = 'none';
+  document.getElementById('cityErr').style.display = 'none';
+  document.getElementById('kwWrap').classList.remove('error');
+  document.getElementById('genCity').classList.remove('error');
+  showView('generate');
+  renderSidebar();
+}
+
+function toggleOptional() {
+  const sec = document.getElementById('optionalFilters');
+  const txt = document.getElementById('optToggleTxt');
+  sec.classList.toggle('open');
+  txt.textContent = sec.classList.contains('open') ? '▼ Hide filters' : '▶ Show filters';
+}
+
+function initKeywordInput() {
+  const input = document.getElementById('kwInput');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = input.value.trim().replace(/,$/, '');
+      if (v) { kwAdd(v); input.value = ''; }
+    } else if (e.key === 'Backspace' && !input.value && kwList.length) {
+      kwRemove(kwList.length - 1);
+    }
+  });
+  input.addEventListener('blur', () => {
+    const v = input.value.trim();
+    if (v) { kwAdd(v); input.value = ''; }
+  });
+}
+
+function kwAdd(kw) {
+  const c = kw.trim();
+  if (!c || kwList.includes(c)) return;
+  kwList.push(c);
+  kwRender();
+  document.getElementById('kwInput').focus();
+  document.getElementById('kwWrap').classList.remove('error');
+  document.getElementById('kwErr').style.display = 'none';
+}
+
+function kwRemove(i) {
+  kwList.splice(i, 1);
+  kwRender();
+}
+
+function kwRender() {
+  const wrap = document.getElementById('kwWrap');
+  const input = document.getElementById('kwInput');
+  wrap.querySelectorAll('.kw-tag').forEach(t => t.remove());
+  kwList.forEach((kw, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'kw-tag';
+    tag.innerHTML = `<span>${esc(trunc(kw, 25))}</span><button onclick="kwRemove(${i})">&times;</button>`;
+    wrap.insertBefore(tag, input);
+  });
+  input.placeholder = kwList.length ? 'Add more...' : 'e.g. Car Rental, Taxi Service';
+}
+
+async function startGenerate() {
+  const kwInp = document.getElementById('kwInput');
+  if (kwInp.value.trim()) { kwAdd(kwInp.value.trim()); kwInp.value = ''; }
+
+  // Validation
+  let hasError = false;
+  if (!kwList.length) {
+    document.getElementById('kwWrap').classList.add('error');
+    document.getElementById('kwErr').style.display = 'block';
+    hasError = true;
+  }
+  const city = document.getElementById('genCity').value.trim();
+  if (!city) {
+    document.getElementById('genCity').classList.add('error');
+    document.getElementById('cityErr').style.display = 'block';
+    hasError = true;
+  } else {
+    document.getElementById('genCity').classList.remove('error');
+    document.getElementById('cityErr').style.display = 'none';
+  }
+  if (hasError) return;
+
+  const country = document.getElementById('genCountry').value.trim();
+  const max = parseInt(document.getElementById('genMax').value);
+  const zoom = parseInt(document.getElementById('genZoom').value);
+  const minRating = parseFloat(document.getElementById('genMinRating').value) || 0;
+  const minReviews = parseInt(document.getElementById('genMinReviews').value) || 0;
+  const requirePhone = document.getElementById('genRequirePhone').value === '1';
+  const customName = document.getElementById('genSessionName').value.trim();
+  const loc = `${city}${country ? ', ' + country : ''}`;
+  const searchStrings = kwList.map(kw => `${kw} in ${loc}`);
+
+  const filterSummary = [
+    minRating > 0 ? `min rating ${minRating}` : '',
+    minReviews > 0 ? `min ${minReviews} reviews` : '',
+    requirePhone ? 'phone required' : ''
+  ].filter(Boolean).join(', ');
+  document.getElementById('genFooterInfo').textContent = filterSummary
+    ? `Filters: ${filterSummary}`
+    : 'Results are deduplicated automatically';
+
+  setGenLoading(true);
+  showGenProgress('RUNNING', `Starting Apify run for <b>${kwList.length}</b> keyword(s) in <b>${city}</b>...`);
+
+  try {
+    const run = await api('POST', '/api/apify/run', {
+      searchStringsArray: searchStrings,
+      maxCrawledPlacesPerSearch: max,
+      maxAutomaticZoomOut: 5,
+      zoom,
+      maxCrawledPlaces: max * searchStrings.length,
+      maxAutoscrolledPlacesPerSearch: max,
+      language: 'en',
+      exportPlaceUrls: true,
+      includeHistogram: false,
+      includeOpeningHours: false,
+      includePeopleAlsoSearch: false,
+      scrapeDirectories: false
+    });
+
+    const runId = run.data.id;
+    showGenProgress('RUNNING', `Run started (<b>${runId.slice(0, 8)}…</b>). Polling every 5s...`);
+    pollRun(runId, city, country, max, searchStrings, { minRating, minReviews, requirePhone, customName });
+
+  } catch (e) {
+    setGenLoading(false);
+    showGenProgress('FAILED', '✗ ' + e.message);
+    setGenDot('fail');
+  }
+}
+
+function pollRun(runId, city, country, max, searchStrings, filters) {
+  let elapsed = 0;
+  pollTimer = setInterval(async () => {
+    elapsed += 5;
+    try {
+      const data = await api('GET', `/api/apify/run/${runId}`);
+      const status = data.data.status;
+      const count = data.data.stats?.itemCount || 0;
+
+      if (status === 'RUNNING' || status === 'READY') {
+        showGenProgress('RUNNING', `Status: <b>${status}</b> · Items found: <b>${count}</b> · Elapsed: <b>${elapsed}s</b>`);
+        return;
+      }
+
+      clearInterval(pollTimer);
+      if (status === 'SUCCEEDED') {
+        showGenProgress('SUCCEEDED', `Fetching <b>${count}</b> results...`);
+        setGenDot('ok');
+        await fetchAndSaveResults(runId, city, filters);
+      } else {
+        showGenProgress('FAILED', `Actor run ${status}. Check Apify console.`);
+        setGenDot('fail');
+        setGenLoading(false);
+      }
+    } catch (e) {
+      clearInterval(pollTimer);
+      setGenLoading(false);
+      toast('Polling error: ' + e.message, 'error');
+    }
+  }, 5000);
+}
+
+async function fetchAndSaveResults(runId, city, filters = {}) {
+  const { minRating = 0, minReviews = 0, requirePhone = false, customName = '' } = filters;
+  try {
+    const items = await api('GET', `/api/apify/run/${runId}/results`);
+    if (!items?.length) {
+      showGenProgress('SUCCEEDED', 'Run finished but 0 results. Try broader keywords or a bigger city.');
+      setGenLoading(false);
+      return;
+    }
+
+    const seen = new Set();
+    let leads = items.filter(item => {
+      const key = item.url || item.placeUrl || `${(item.title||item.name||'').toLowerCase()}|${(item.address||'').toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(item => ({
+      name: item.title || item.name || '',
+      category: item.categoryName || kwList[0] || '',
+      address: item.address || item.street || '',
+      phone: item.phone || item.phoneUnformatted || null,
+      website: item.website || null,
+      email: extractEmail(item),
+      rating: item.totalScore || item.rating || null,
+      reviewsCount: item.reviewsCount || 0,
+      googleMapsUrl: item.url || item.placeUrl || null,
+      status: 'new'
+    }));
+
+    const beforeFilter = leads.length;
+    if (minRating > 0) leads = leads.filter(l => l.rating && l.rating >= minRating);
+    if (minReviews > 0) leads = leads.filter(l => l.reviewsCount >= minReviews);
+    if (requirePhone) leads = leads.filter(l => l.phone);
+    const filteredOut = beforeFilter - leads.length;
+    const dupes = items.length - beforeFilter;
+
+    const sessionCat = customName || kwList.join(' | ');
+    const session = await api('POST', '/api/sessions', {
+      category: sessionCat,
+      city,
+      keywords: kwList,
+      leads
+    });
+
+    let msg = `Saved <b>${leads.length}</b> leads`;
+    if (dupes) msg += `, removed <b>${dupes}</b> duplicates`;
+    if (filteredOut) msg += `, filtered out <b>${filteredOut}</b> by criteria`;
+    msg += '!';
+    showGenProgress('SUCCEEDED', msg);
+    setGenLoading(false);
+    await loadSessions();
+    setTimeout(() => {
+      openSession(session.category, session.filename);
+    }, 1200);
+    toast(`Generated ${leads.length} leads for ${city}`, 'success');
+
+  } catch (e) {
+    setGenLoading(false);
+    showGenProgress('FAILED', 'Error saving results: ' + e.message);
+    setGenDot('fail');
+  }
+}
+
+function extractEmail(item) {
+  if (item.email) return item.email;
+  if (item.emails?.length) return item.emails[0];
+  const m = JSON.stringify(item).match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  return m ? m[0] : null;
+}
+
+function setGenLoading(on) {
+  document.getElementById('genBtn').disabled = on;
+  document.getElementById('genBtnTxt').textContent = on ? 'Running...' : '🔍 Search Google Maps';
+  document.getElementById('genSpinner').style.display = on ? 'inline-block' : 'none';
+}
+
+function showGenProgress(status, msg) {
+  document.getElementById('genProgress').classList.add('visible');
+  document.getElementById('genText').innerHTML = msg;
+  if (status === 'RUNNING') setGenDot('run');
+}
+
+function setGenDot(state) {
+  const dot = document.getElementById('genDot');
+  dot.className = 'prog-dot' + (state === 'ok' ? ' ok' : state === 'fail' ? ' fail' : '');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOKEN / SETTINGS
+// ═══════════════════════════════════════════════════════════
+async function loadTokenStatus() {
+  try {
+    const data = await api('GET', '/api/token');
+    if (data.token) document.getElementById('tokenInput').value = data.token;
+    updateTokenStatus(!!data.token);
+  } catch {}
+}
+
+function updateTokenStatus(has) {
+  const el = document.getElementById('tokenStatus');
+  el.className = 'token-status ' + (has ? 'ok' : 'missing');
+  el.textContent = has ? '✓ Token saved — scraping ready' : '⚠ No token — add yours to enable lead generation';
+}
+
+async function saveToken() {
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!token) { toast('Enter your Apify token first', 'warning'); return; }
+  try {
+    await api('POST', '/api/token', { token });
+    updateTokenStatus(true);
+    toast('Token saved to .env', 'success');
+  } catch (e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+function toggleTokenVis() {
+  const inp = document.getElementById('tokenInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function openSettings() {
+  loadTokenStatus();
+  openModal('settingsModal');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODALS & UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeAllModals() { document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); }
+
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  const btn = document.getElementById('confirmOk');
+  const clone = btn.cloneNode(true);
+  btn.replaceWith(clone);
+  clone.onclick = () => { closeModal('confirmModal'); onOk(); };
+  openModal('confirmModal');
+}
+
+function toggleDropdown(id) {
+  const menu = document.getElementById(id + 'Menu');
+  menu.classList.toggle('open');
+}
+
+function closeDropdowns() {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
+  t.innerHTML = `<span style="color:${type==='success'?'var(--acc)':type==='error'?'var(--red)':'var(--yellow)'}">${icons[type]||''}</span> ${esc(msg)}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+async function copyText(txt) {
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast('Copied!', 'success');
+  } catch { toast('Copy failed', 'error'); }
+}
+
+function trunc(s, n) { return s && s.length > n ? s.slice(0, n) + '…' : (s || ''); }
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
