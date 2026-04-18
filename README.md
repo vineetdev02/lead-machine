@@ -89,8 +89,6 @@ npm start
 
 Open **http://localhost:3005** in your browser.
 
-> **Note:** Port 6000 is blocked by Chrome. Use 3005 or any port above 1024 that isn't blocked.
-
 ---
 
 ## Usage Guide
