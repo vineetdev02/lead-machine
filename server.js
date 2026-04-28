@@ -296,6 +296,53 @@ app.get('/api/export/:cat/:file/phones', (req, res) => {
   res.json({ phones });
 });
 
+// ── Notes API ──────────────────────────────────────────────────────────────
+const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
+
+function readNotes() {
+  try { return JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8')).notes || []; }
+  catch { return []; }
+}
+
+function writeNotes(notes) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(NOTES_FILE, JSON.stringify({ notes }, null, 2), 'utf8');
+}
+
+app.get('/api/notes', (req, res) => {
+  res.json(readNotes());
+});
+
+app.post('/api/notes', (req, res) => {
+  const notes = readNotes();
+  const note = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    title: req.body.title || 'Untitled',
+    content: req.body.content || '',
+    color: req.body.color || 'green',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  notes.unshift(note);
+  writeNotes(notes);
+  res.json(note);
+});
+
+app.patch('/api/notes/:id', (req, res) => {
+  const notes = readNotes();
+  const i = notes.findIndex(n => n.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Note not found' });
+  Object.assign(notes[i], req.body, { updatedAt: new Date().toISOString() });
+  writeNotes(notes);
+  res.json(notes[i]);
+});
+
+app.delete('/api/notes/:id', (req, res) => {
+  const notes = readNotes().filter(n => n.id !== req.params.id);
+  writeNotes(notes);
+  res.json({ ok: true });
+});
+
 // Global error logger
 app.use((err, req, res, _next) => {
   console.error(`[ERROR] ${req.method} ${req.url}:`, err.message);
