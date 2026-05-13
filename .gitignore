@@ -1,5 +1,12 @@
 node_modules/
 Data/
+docs/
 .env
+.env.*
 *.log
 .claude/
+.codex
+
+# Safety nets — never push lead exports
+*.csv
+*.xlsx
