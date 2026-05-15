@@ -1,9 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const XLSX = require('xlsx');
+const auth = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +14,16 @@ const ENV_FILE = path.join(__dirname, '.env');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 app.use(express.json({ limit: '50mb' }));
+app.use(cookieParser());
+
+// Public auth routes (no auth required)
+auth.mountRoutes(app);
+
+// Login page is public
+app.get('/login', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'login.html')));
+
+// Everything else requires a valid session
+app.use(auth.requireAuth);
 app.use(express.static(PUBLIC_DIR));
 
 [DATA_DIR, PUBLIC_DIR].forEach(d => fs.mkdirSync(d, { recursive: true }));

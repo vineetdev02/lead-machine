@@ -8,11 +8,16 @@
     "dev": "nodemon --watch server.js --ignore Data/ --ignore public/ --ignore .env server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "otplib": "^13.4.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "qrcode-terminal": "^0.12.0"
   }
 }

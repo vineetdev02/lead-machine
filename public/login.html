@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LeadHunter — Sign in</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;--bg2:#141418;--bg3:#1a1a20;
+  --acc:#00ff88;--acc-dim:rgba(0,255,136,.12);--acc-glow:rgba(0,255,136,.3);
+  --txt:#e8e8e8;--muted:#666;--border:#252530;--border2:#1e1e28;
+  --red:#ff5555;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--txt);font-family:'Syne',sans-serif}
+body{display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 30% 20%, rgba(0,255,136,.06), transparent 60%),var(--bg)}
+
+.login-card{
+  width:100%;max-width:400px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:30px 28px;box-shadow:0 24px 64px rgba(0,0,0,.6);
+}
+.brand{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.brand-name{font-size:24px;font-weight:800;color:var(--acc);letter-spacing:-.5px}
+.brand-tag{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);border:1px solid var(--border);padding:2px 6px;border-radius:4px}
+.subtitle{color:var(--muted);font-size:13px;margin-bottom:24px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.field input{
+  width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--txt);
+  padding:11px 12px;border-radius:8px;font-family:'Syne',sans-serif;font-size:14px;outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.field input:focus{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-dim)}
+.field input.code{font-family:'JetBrains Mono',monospace;letter-spacing:6px;font-size:18px;text-align:center}
+
+.btn-login{
+  width:100%;background:var(--acc);color:#000;border:none;border-radius:8px;
+  padding:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;
+  margin-top:6px;transition:all .2s;
+}
+.btn-login:hover:not(:disabled){box-shadow:0 0 24px var(--acc-glow);transform:translateY(-1px)}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+
+.error{color:var(--red);font-size:12px;margin-top:10px;min-height:16px;text-align:center}
+.hint{color:var(--muted);font-size:11px;margin-top:14px;text-align:center;line-height:1.6}
+.hint .acc{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand">
+    <div class="brand-name">LeadHunter</div>
+    <div class="brand-tag">CRM</div>
+  </div>
+  <div class="subtitle">Sign in with your 2FA code</div>
+
+  <form id="loginForm" autocomplete="on">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="email" required autocomplete="username" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <div class="field">
+      <label>Authenticator code</label>
+      <input type="text" id="code" class="code" required inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" placeholder="000000">
+    </div>
+    <button type="submit" class="btn-login" id="btnLogin">Sign in</button>
+    <div class="error" id="errorBox"></div>
+  </form>
+
+  <div class="hint">Open <span class="acc">Google Authenticator</span> for the 6-digit code.</div>
+</div>
+
+<script>
+const form = document.getElementById('loginForm');
+const errBox = document.getElementById('errorBox');
+const btn = document.getElementById('btnLogin');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errBox.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:    document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        code:     document.getElementById('code').value.trim(),
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'Login failed');
+    location.href = '/';
+  } catch (err) {
+    errBox.textContent = err.message;
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+});
+
+document.getElementById('code').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/[^0-9 ]/g, '');
+});
+</script>
+</body>
+</html>

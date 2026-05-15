@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>LeadHunter CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -22,7 +22,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--txt);font-si
 ::-webkit-scrollbar-thumb:hover{background:#3a3a4a}
 
 /* ── Layout ── */
-.app{display:flex;height:100vh}
+.app{display:flex;height:100vh;height:100dvh}
 
 /* ── Sidebar ── */
 .sidebar{
@@ -59,8 +59,10 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--txt);font-si
 .sb-session-del{background:none;border:none;color:transparent;cursor:pointer;font-size:15px;padding:2px 4px;transition:color .2s;flex-shrink:0}
 .sb-session:hover .sb-session-del{color:var(--muted)}
 .sb-session-del:hover{color:var(--red) !important}
-.sb-footer{padding:12px;border-top:1px solid var(--border2);display:flex;gap:8px;flex-shrink:0}
+.sb-footer{padding:12px;border-top:1px solid var(--border2);display:flex;gap:8px;flex-shrink:0;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .sb-footer .btn{flex:1;justify-content:center;font-size:12px;padding:8px 10px}
+.sb-footer .sb-logout{flex:0 0 auto;padding:8px 10px;color:var(--muted);border:1px solid var(--border)}
+.sb-footer .sb-logout:hover{color:var(--red);border-color:var(--red)}
 
 /* ── Main ── */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -139,6 +141,9 @@ tbody td.action-cell{width:90px;max-width:90px}
 .copy-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 3px;opacity:0;transition:opacity .15s}
 tbody tr:hover .copy-btn{opacity:1}
 .copy-btn:hover{color:var(--acc)}
+.phone-link{color:var(--acc);text-decoration:none;border-bottom:1px dotted rgba(0,255,136,.3)}
+.phone-link:hover{border-bottom-color:var(--acc)}
+@media (max-width:600px){.copy-btn{opacity:.6}}
 
 /* ── Pagination ── */
 .pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border2);flex-wrap:wrap;gap:8px}
@@ -245,6 +250,10 @@ tbody tr:hover .copy-btn{opacity:1}
 .token-row{display:flex;gap:8px;align-items:center}
 .token-row input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:12px;padding:9px 11px;outline:none;transition:border-color .2s}
 .token-row input:focus{border-color:var(--acc)}
+.input-with-btn{display:flex;gap:6px;align-items:stretch}
+.input-with-btn input{flex:1;min-width:0}
+.copy-input-btn{padding:0 12px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--muted)}
+.copy-input-btn:hover{color:var(--acc);border-color:var(--acc)}
 .token-status{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px}
 .token-status.ok{color:var(--acc)}
 .token-status.missing{color:var(--yellow)}
@@ -390,7 +399,7 @@ tbody tr:hover .copy-btn{opacity:1}
   .status-chips{display:none}
   .status-select{display:block;flex:1 1 auto}
   .toolbar-actions{margin-left:0}
-  .table-scroll{max-height:calc(100vh - 360px)}
+  .table-scroll{max-height:calc(100dvh - 380px)}
   /* Pin Actions column to right edge so all 3 icons stay visible.
      !important needed to override inline width:90px on the <th>. */
   thead th:last-child{
@@ -406,12 +415,12 @@ tbody tr:hover .copy-btn{opacity:1}
   .action-cell{gap:6px;justify-content:flex-end}
   .action-cell .act-btn{padding:5px 8px;font-size:13px}
   tbody tr:hover td.action-cell{background:var(--acc-dim)}
-  .pagination{padding:8px 10px;gap:6px}
-  .pag-left{flex-wrap:wrap;gap:8px}
+  .pagination{padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));gap:6px;flex-direction:column;align-items:stretch}
+  .pag-left{flex-wrap:wrap;gap:8px;justify-content:space-between}
   .pag-info{font-size:10px}
   .pag-size{font-size:10px}
-  .pag-btns{flex-wrap:wrap;gap:2px}
-  .pg-btn{padding:4px 8px;font-size:10px}
+  .pag-btns{flex-wrap:wrap;gap:2px;justify-content:center}
+  .pg-btn{padding:5px 9px;font-size:11px;min-width:30px}
   /* Use dynamic viewport so iOS browser chrome doesn't hide the modal footer */
   .modal{max-width:100vw;max-height:100dvh;border-radius:0;border:none;height:100dvh}
   .modal-body{padding:14px}
@@ -472,6 +481,7 @@ tbody tr:hover .copy-btn{opacity:1}
     <div class="sb-footer">
       <button class="btn btn-secondary" onclick="openSettings()">⚙ Settings</button>
       <button class="btn btn-primary" onclick="openGeneratePage()">+ Generate</button>
+      <button class="btn btn-ghost sb-logout" onclick="logout()" title="Sign out">⏻</button>
     </div>
   </aside>
 
@@ -734,7 +744,11 @@ tbody tr:hover .copy-btn{opacity:1}
         </div>
         <div class="form-group">
           <label>Phone</label>
-          <input type="tel" id="lPhone" placeholder="+91 99999 99999">
+          <div class="input-with-btn">
+            <input type="tel" id="lPhone" placeholder="+91 99999 99999" oninput="syncCallLink()">
+            <button type="button" class="copy-input-btn" onclick="copyInputValue('lPhone')" title="Copy phone">⧉</button>
+            <a id="lPhoneCall" class="copy-input-btn" href="#" title="Call" style="display:none">📞</a>
+          </div>
         </div>
         <div class="form-group">
           <label>Email</label>
@@ -933,9 +947,15 @@ async function api(method, url, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
+  if (res.status === 401) { location.href = '/login'; throw new Error('unauthorized'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+
+async function logout() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+  location.href = '/login';
 }
 
 function encRef(ref) {
@@ -1202,7 +1222,7 @@ function renderTable() {
     }
 
     const phone = l.phone
-      ? `${esc(l.phone)} <button class="copy-btn" onclick="copyText('${esc(l.phone)}')" title="Copy">⧉</button>`
+      ? `<a href="tel:${esc(l.phone.replace(/\s+/g,''))}" class="phone-link" title="Tap to call">${esc(l.phone)}</a> <button class="copy-btn" onclick="event.stopPropagation();copyText('${esc(l.phone)}')" title="Copy">⧉</button>`
       : '<span style="color:var(--muted)">—</span>';
     const email = l.email
       ? `${esc(trunc(l.email, 22))} <button class="copy-btn" onclick="copyText('${esc(l.email)}')" title="Copy">⧉</button>`
@@ -1308,6 +1328,7 @@ function openAddLead() {
   document.getElementById('leadModalTitle').textContent = 'Add Lead';
   clearLeadForm();
   setStatusPicker('new');
+  syncCallLink();
   openModal('leadModal');
 }
 
@@ -1327,6 +1348,7 @@ function openEditLead(idx) {
   document.getElementById('lLastContact').value = l.lastContactedAt || '';
   document.getElementById('lNotes').value = l.notes || '';
   setStatusPicker(l.status || 'new');
+  syncCallLink();
   openModal('leadModal');
 }
 
@@ -1972,6 +1994,26 @@ async function copyText(txt) {
     await navigator.clipboard.writeText(txt);
     toast('Copied!', 'success');
   } catch { toast('Copy failed', 'error'); }
+}
+
+function copyInputValue(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const v = (el.value || '').trim();
+  if (!v) { toast('Nothing to copy', 'warning'); return; }
+  copyText(v);
+}
+
+function syncCallLink() {
+  const phone = (document.getElementById('lPhone')?.value || '').trim();
+  const a = document.getElementById('lPhoneCall');
+  if (!a) return;
+  if (phone) {
+    a.href = 'tel:' + phone.replace(/\s+/g, '');
+    a.style.display = 'inline-flex';
+  } else {
+    a.style.display = 'none';
+  }
 }
 
 function trunc(s, n) { return s && s.length > n ? s.slice(0, n) + '…' : (s || ''); }
