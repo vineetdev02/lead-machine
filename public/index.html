@@ -273,6 +273,8 @@ tbody tr:hover .copy-btn{opacity:1}
 
 .notes-body{flex:1;display:flex;overflow:hidden}
 
+.notes-back-btn{display:none;background:var(--bg3);border:1px solid var(--border);color:var(--txt);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.notes-back-btn:hover{border-color:var(--acc);color:var(--acc)}
 .notes-sidebar{width:280px;min-width:280px;background:var(--bg2);border-right:1px solid var(--border2);display:flex;flex-direction:column}
 .notes-sb-head{padding:14px;border-bottom:1px solid var(--border2);flex-shrink:0}
 .notes-add-btn{width:100%;background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 14px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s}
@@ -372,10 +374,13 @@ tbody tr:hover .copy-btn{opacity:1}
 @media (max-width:600px){
   body{font-size:13px}
   .content{padding:10px}
-  .topbar{padding:0 10px;gap:6px}
-  .topbar-title{max-width:140px;font-size:13px}
-  .topbar-meta{font-size:10px}
-  .topbar-right .btn{padding:7px 10px;font-size:11px}
+  .topbar{padding:0 8px;gap:4px}
+  .topbar-title{max-width:120px;font-size:13px}
+  .topbar-meta{display:none}
+  .topbar-right{gap:4px}
+  .topbar-right .btn{padding:6px 8px;font-size:10.5px;letter-spacing:0}
+  .notes-btn{padding:6px 8px;font-size:10.5px;gap:4px}
+  .notes-btn .count-badge{font-size:8px;padding:1px 4px;min-width:14px}
   .stats-bar{grid-template-columns:repeat(2,1fr);gap:6px}
   .stat-card{padding:10px 8px}
   .stat-val{font-size:18px}
@@ -386,16 +391,32 @@ tbody tr:hover .copy-btn{opacity:1}
   .status-select{display:block;flex:1 1 auto}
   .toolbar-actions{margin-left:0}
   .table-scroll{max-height:calc(100vh - 360px)}
+  /* Pin Actions column to right edge so all 3 icons stay visible.
+     !important needed to override inline width:90px on the <th>. */
+  thead th:last-child{
+    width:130px !important;min-width:130px;padding:10px 8px;
+    position:sticky;right:0;z-index:6;background:var(--bg3);
+    box-shadow:-6px 0 10px -4px rgba(0,0,0,.6);
+  }
+  tbody td.action-cell{
+    width:130px !important;max-width:130px;padding:6px 8px;
+    position:sticky;right:0;z-index:4;background:var(--bg2);
+    box-shadow:-6px 0 10px -4px rgba(0,0,0,.6);
+  }
+  .action-cell{gap:6px;justify-content:flex-end}
+  .action-cell .act-btn{padding:5px 8px;font-size:13px}
+  tbody tr:hover td.action-cell{background:var(--acc-dim)}
   .pagination{padding:8px 10px;gap:6px}
   .pag-left{flex-wrap:wrap;gap:8px}
   .pag-info{font-size:10px}
   .pag-size{font-size:10px}
   .pag-btns{flex-wrap:wrap;gap:2px}
   .pg-btn{padding:4px 8px;font-size:10px}
-  .modal{max-width:100vw;max-height:100vh;border-radius:0;border:none;height:100vh}
+  /* Use dynamic viewport so iOS browser chrome doesn't hide the modal footer */
+  .modal{max-width:100vw;max-height:100dvh;border-radius:0;border:none;height:100dvh}
   .modal-body{padding:14px}
   .modal-head{padding:14px}
-  .modal-foot{padding:10px 14px;flex-wrap:wrap}
+  .modal-foot{padding:10px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom));flex-wrap:wrap}
   .modal-foot .btn{flex:1;justify-content:center}
   .gen-page-header h2{font-size:18px}
   .gen-page-header p{font-size:12px}
@@ -407,6 +428,27 @@ tbody tr:hover .copy-btn{opacity:1}
   .btn{font-size:12px;padding:7px 12px}
   .toasts{top:10px;right:10px;left:10px}
   .toast{max-width:none}
+}
+
+@media (max-width:420px){
+  .topbar-title{max-width:90px;font-size:12px}
+  .topbar-right .btn,.notes-btn{padding:5px 7px;font-size:10px}
+}
+
+/* ── Notes modal: stack panels on mobile, toggle via .editing class ── */
+@media (max-width:600px){
+  .notes-header{padding:12px 14px;gap:8px}
+  .notes-header h2{font-size:16px}
+  .notes-sidebar{width:100%;min-width:0;border-right:none}
+  .notes-editor-head{padding:14px 16px 10px;gap:8px}
+  .notes-content-wrap{padding:14px 16px 20px}
+  .notes-footer{padding:8px 16px;gap:10px;flex-wrap:wrap}
+  /* Show only one panel at a time */
+  .notes-body .notes-editor{display:none}
+  .notes-body.editing .notes-sidebar{display:none}
+  .notes-body.editing .notes-editor{display:flex}
+  /* Back button visible only when editing on mobile */
+  .notes-body.editing .notes-back-btn{display:inline-flex}
 }
 </style>
 </head>
@@ -814,6 +856,7 @@ tbody tr:hover .copy-btn{opacity:1}
         <!-- Editor view -->
         <div id="notesEditorView" style="display:none;flex-direction:column;height:100%">
           <div class="notes-editor-head">
+            <button class="notes-back-btn" onclick="showNotesList()" title="Back to notes list">←</button>
             <input type="text" class="notes-title-input" id="noteTitleInput" placeholder="Note title..." oninput="onNoteEdit()">
             <div class="notes-color-picker" id="colorPicker">
               <div class="notes-color-dot green"   data-c="green"  onclick="setNoteColor('green')"></div>
@@ -1714,13 +1757,15 @@ function updateNotesBadge() {
 function openNotes() {
   document.getElementById('notesOverlay').classList.add('open');
   renderNotesList();
+  const isMobile = window.innerWidth <= 600;
   if (activeNoteId && allNotes.find(n => n.id === activeNoteId)) {
     selectNote(activeNoteId);
-  } else if (allNotes.length) {
+  } else if (allNotes.length && !isMobile) {
     selectNote(allNotes[0].id);
   } else {
     showEditorEmpty();
   }
+  if (isMobile) document.querySelector('.notes-body')?.classList.remove('editing');
 }
 
 function closeNotes() {
@@ -1766,6 +1811,7 @@ function selectNote(id) {
 
   document.getElementById('notesEditorEmpty').style.display = 'none';
   document.getElementById('notesEditorView').style.display = 'flex';
+  document.querySelector('.notes-body')?.classList.add('editing');
   document.getElementById('noteTitleInput').value = note.title || '';
   document.getElementById('noteContentInput').value = note.content || '';
   document.querySelectorAll('.notes-color-dot').forEach(d =>
@@ -1781,6 +1827,11 @@ function showEditorEmpty() {
   activeNoteId = null;
   document.getElementById('notesEditorEmpty').style.display = 'flex';
   document.getElementById('notesEditorView').style.display = 'none';
+}
+
+function showNotesList() {
+  if (noteSaveTimer) { clearTimeout(noteSaveTimer); saveActiveNote(); }
+  document.querySelector('.notes-body')?.classList.remove('editing');
 }
 
 async function addNote() {
