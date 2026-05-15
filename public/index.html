@@ -360,7 +360,7 @@ tbody tr:hover .copy-btn{opacity:1}
 /* ── Responsive: tablet ── */
 @media (max-width:900px){
   :root{--sw:240px}
-  .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:999;box-shadow:4px 0 16px rgba(0,0,0,.5);transition:transform .25s ease,opacity .2s}
+  .sidebar{position:fixed;top:0;left:0;height:100vh;height:100dvh;z-index:999;box-shadow:4px 0 16px rgba(0,0,0,.5);transition:transform .25s ease,opacity .2s}
   .sidebar.collapsed{width:var(--sw);min-width:var(--sw);opacity:0;transform:translateX(-100%);pointer-events:none}
   /* Prevent sidebar flash before JS sets .collapsed on mobile */
   html[data-mobile="1"] .sidebar:not(.collapsed){transform:translateX(-100%);opacity:0;pointer-events:none;box-shadow:none}
