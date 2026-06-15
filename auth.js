@@ -1,10 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const otp    = require('otplib');
+const fs     = require('fs');
+const path   = require('path');
 
 const COOKIE_NAME  = 'lh_session';
 const TOKEN_TTL    = '24h';
 const COOKIE_MAXMS = 24 * 60 * 60 * 1000;
+const USERS_FILE   = path.join(__dirname, 'users.json');
 
 const ADMIN_EMAIL   = process.env.ADMIN_EMAIL   || '';
 const PASSWORD_HASH = process.env.PASSWORD_HASH || '';
@@ -12,6 +15,42 @@ const TOTP_SECRET   = process.env.TOTP_SECRET   || '';
 const JWT_SECRET    = process.env.JWT_SECRET    || '';
 
 const isConfigured = !!(ADMIN_EMAIL && PASSWORD_HASH && TOTP_SECRET && JWT_SECRET);
+
+// ── User directory ──────────────────────────────────────────────────────────
+// The env-based account is always the admin. Additional accounts (e.g. callers
+// who manage leads but can't generate them or change settings) live in
+// users.json — each { email, passwordHash, role }.
+//
+// 2FA is shared: every account (admin and agents) authenticates against the
+// single owner-controlled TOTP_SECRET. Agents have no QR/secret of their own —
+// they get the 6-digit code from the owner.
+function loadUsers() {
+  const users = [];
+  if (ADMIN_EMAIL && PASSWORD_HASH && TOTP_SECRET) {
+    users.push({ email: ADMIN_EMAIL, passwordHash: PASSWORD_HASH, role: 'admin' });
+  }
+  try {
+    const arr = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    if (Array.isArray(arr)) {
+      for (const u of arr) {
+        if (u && u.email && u.passwordHash) {
+          users.push({
+            email: String(u.email),
+            passwordHash: String(u.passwordHash),
+            role: u.role === 'admin' ? 'admin' : 'agent',
+          });
+        }
+      }
+    }
+  } catch { /* no users.json — env admin only */ }
+  return users;
+}
+
+function findUser(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return null;
+  return loadUsers().find(u => u.email.toLowerCase() === e) || null;
+}
 const IS_PROD = process.env.NODE_ENV === 'production';
 if (!isConfigured) {
   if (IS_PROD) {
@@ -21,13 +60,16 @@ if (!isConfigured) {
   }
 }
 
-function verifyTotp(code) {
-  if (!code) return false;
-  return otp.verify({ token: String(code).replace(/\s+/g,''), secret: TOTP_SECRET, encoding: 'base32', window: 1 });
+function verifyTotp(code, secret) {
+  if (!code || !secret) return false;
+  // otplib v13's verify() is async (returns a Promise — always truthy). Use the
+  // sync variant and read .valid, otherwise the 2FA check is silently bypassed.
+  const result = otp.verifySync({ token: String(code).replace(/\s+/g,''), secret, encoding: 'base32', window: 1 });
+  return !!(result && result.valid);
 }
 
-function signSession(email) {
-  return jwt.sign({ sub: email }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+function signSession(email, role) {
+  return jwt.sign({ sub: email, role: role || 'agent' }, JWT_SECRET, { expiresIn: TOKEN_TTL });
 }
 
 function readSession(req) {
@@ -67,14 +109,16 @@ function mountRoutes(app) {
     if (!isConfigured) return res.status(500).json({ error: 'auth not configured on server' });
     const { email, password, code } = req.body || {};
     if (!email || !password || !code) return res.status(400).json({ error: 'email, password, code required' });
-    if (email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      return res.status(401).json({ error: 'invalid credentials' });
-    }
-    const passOk = await bcrypt.compare(password, PASSWORD_HASH);
+    const user = findUser(email);
+    if (!user) return res.status(401).json({ error: 'invalid credentials' });
+    const passOk = await bcrypt.compare(password, user.passwordHash);
     if (!passOk) return res.status(401).json({ error: 'invalid credentials' });
-    if (!verifyTotp(code)) return res.status(401).json({ error: 'invalid 2FA code' });
-    setSessionCookie(res, signSession(ADMIN_EMAIL));
-    res.json({ ok: true, email: ADMIN_EMAIL });
+    // Single shared 2FA: every account (admin + agents) verifies against the
+    // owner's authenticator (TOTP_SECRET in .env). Agents must ask the owner
+    // for the current 6-digit code — no per-user secret/QR is ever issued.
+    if (!verifyTotp(code, TOTP_SECRET)) return res.status(401).json({ error: 'invalid 2FA code' });
+    setSessionCookie(res, signSession(user.email, user.role));
+    res.json({ ok: true, email: user.email, role: user.role });
   });
 
   app.post('/api/auth/logout', (req, res) => {
@@ -83,11 +127,20 @@ function mountRoutes(app) {
   });
 
   app.get('/api/auth/me', (req, res) => {
-    if (!isConfigured) return res.json({ email: 'dev', configured: false });
+    if (!isConfigured) return res.json({ email: 'dev', role: 'admin', configured: false });
     const sess = readSession(req);
     if (!sess) return res.status(401).json({ error: 'unauthorized' });
-    res.json({ email: sess.sub, configured: true });
+    res.json({ email: sess.sub, role: sess.role || 'admin', configured: true });
   });
 }
 
-module.exports = { mountRoutes, requireAuth, isConfigured, COOKIE_NAME };
+// Middleware: admin-only routes (generate leads, settings/token, deletions).
+// Agents get 403. In unconfigured dev mode everything is open.
+function requireAdmin(req, res, next) {
+  if (!isConfigured) return next();
+  const sess = readSession(req);
+  if (sess && sess.role === 'admin') return next();
+  return res.status(403).json({ error: 'forbidden: admin only' });
+}
+
+module.exports = { mountRoutes, requireAuth, requireAdmin, isConfigured, COOKIE_NAME };

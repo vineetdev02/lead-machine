@@ -3,6 +3,7 @@ Data/
 docs/
 .env
 .env.*
+users.json
 *.log
 .claude/
 .codex

@@ -108,11 +108,11 @@ function buildCsv(leads) {
 }
 
 // ── Token ─────────────────────────────────────────────────────────────────
-app.get('/api/token', (req, res) => {
+app.get('/api/token', auth.requireAdmin, (req, res) => {
   res.json({ token: process.env.APIFY_TOKEN || '' });
 });
 
-app.post('/api/token', (req, res) => {
+app.post('/api/token', auth.requireAdmin, (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'No token provided' });
   let env = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : '';
@@ -150,7 +150,7 @@ app.get('/api/sessions/:cat/:file', (req, res) => {
   res.json(data);
 });
 
-app.delete('/api/sessions/:cat/:file', (req, res) => {
+app.delete('/api/sessions/:cat/:file', auth.requireAdmin, (req, res) => {
   try {
     const base = req.params.file.replace(/\.json$/, '');
     for (const ext of ['.json', '.csv', '.xlsx']) {
@@ -172,7 +172,7 @@ app.patch('/api/sessions/:cat/:file/leads/:idx', (req, res) => {
   res.json(data.leads[idx]);
 });
 
-app.post('/api/sessions/:cat/:file/leads', (req, res) => {
+app.post('/api/sessions/:cat/:file/leads', auth.requireAdmin, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Session not found' });
   const lead = normalizeLead(req.body, data.meta?.category);
@@ -182,7 +182,7 @@ app.post('/api/sessions/:cat/:file/leads', (req, res) => {
   res.json({ idx: data.leads.length - 1, lead });
 });
 
-app.delete('/api/sessions/:cat/:file/leads/:idx', (req, res) => {
+app.delete('/api/sessions/:cat/:file/leads/:idx', auth.requireAdmin, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Session not found' });
   const idx = parseInt(req.params.idx);
@@ -194,7 +194,7 @@ app.delete('/api/sessions/:cat/:file/leads/:idx', (req, res) => {
 });
 
 // ── Save generated session ─────────────────────────────────────────────────
-app.post('/api/sessions', (req, res) => {
+app.post('/api/sessions', auth.requireAdmin, (req, res) => {
   try {
     const { category, city, keywords, leads: rawLeads } = req.body;
     console.log(`[SAVE SESSION] category=${category} city=${city} leads=${rawLeads?.length || 0}`);
@@ -245,7 +245,7 @@ app.post('/api/sessions', (req, res) => {
 });
 
 // ── Apify proxy ────────────────────────────────────────────────────────────
-app.post('/api/apify/run', async (req, res) => {
+app.post('/api/apify/run', auth.requireAdmin, async (req, res) => {
   const token = process.env.APIFY_TOKEN;
   if (!token) return res.status(400).json({ error: 'No Apify token. Go to Settings and add your token.' });
   try {
@@ -254,7 +254,7 @@ app.post('/api/apify/run', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/apify/run/:runId', async (req, res) => {
+app.get('/api/apify/run/:runId', auth.requireAdmin, async (req, res) => {
   const token = process.env.APIFY_TOKEN;
   if (!token) return res.status(400).json({ error: 'No token' });
   try {
@@ -263,7 +263,7 @@ app.get('/api/apify/run/:runId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/apify/run/:runId/results', async (req, res) => {
+app.get('/api/apify/run/:runId/results', auth.requireAdmin, async (req, res) => {
   const token = process.env.APIFY_TOKEN;
   if (!token) return res.status(400).json({ error: 'No token' });
   try {

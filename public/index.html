@@ -459,6 +459,8 @@ tbody tr:hover .copy-btn{opacity:1}
   /* Back button visible only when editing on mobile */
   .notes-body.editing .notes-back-btn{display:inline-flex}
 }
+/* ── Role-based access: hide admin-only controls for agent accounts ── */
+body.role-agent .admin-only{display:none !important}
 </style>
 </head>
 <body>
@@ -470,7 +472,7 @@ tbody tr:hover .copy-btn{opacity:1}
 
   <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar">
-    <div class="sb-brand">
+    <div class="sb-brand" onclick="goHome()" title="Home" style="cursor:pointer">
       <h1>LeadHunter</h1>
       <span class="tag">CRM</span>
     </div>
@@ -479,8 +481,8 @@ tbody tr:hover .copy-btn{opacity:1}
     </div>
     <div class="sb-list" id="sessionList"></div>
     <div class="sb-footer">
-      <button class="btn btn-secondary" onclick="openSettings()">⚙ Settings</button>
-      <button class="btn btn-primary" onclick="openGeneratePage()">+ Generate</button>
+      <button class="btn btn-secondary admin-only" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn btn-primary admin-only" onclick="openGeneratePage()">+ Generate</button>
       <button class="btn btn-ghost sb-logout" onclick="logout()" title="Sign out">⏻</button>
     </div>
   </aside>
@@ -503,7 +505,7 @@ tbody tr:hover .copy-btn{opacity:1}
         </button>
       </div>
       <div class="topbar-right" id="topActions" style="display:none;margin-left:0">
-        <button class="btn btn-secondary" onclick="openAddLead()">+ Add Lead</button>
+        <button class="btn btn-secondary admin-only" onclick="openAddLead()">+ Add Lead</button>
         <div class="dropdown" id="exportDrop">
           <button class="btn btn-secondary" onclick="toggleDropdown('exportDrop')">↓ Export ▾</button>
           <div class="dropdown-menu" id="exportDropMenu">
@@ -523,7 +525,7 @@ tbody tr:hover .copy-btn{opacity:1}
         <div class="icon">🎯</div>
         <h2>No session selected</h2>
         <p>Pick a session from the sidebar, or generate fresh leads from Google Maps.</p>
-        <button class="btn btn-primary" onclick="openGeneratePage()">+ Generate Leads</button>
+        <button class="btn btn-primary admin-only" onclick="openGeneratePage()">+ Generate Leads</button>
       </div>
 
       <!-- Session view -->
@@ -958,6 +960,27 @@ async function logout() {
   location.href = '/login';
 }
 
+// ── Home ────────────────────────────────────────────────────────────────────
+function goHome() {
+  curRef = null;
+  showView('empty');
+  renderSidebar();
+  if (window.innerWidth <= 900) {
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('sbBackdrop').classList.remove('open');
+  }
+}
+
+// ── Role / permissions ──────────────────────────────────────────────────────
+let isAdmin = true;
+async function loadRole() {
+  try {
+    const me = await api('GET', '/api/auth/me');
+    isAdmin = (me.role === 'admin');
+  } catch { isAdmin = false; }
+  document.body.classList.toggle('role-agent', !isAdmin);
+}
+
 function encRef(ref) {
   return `${encodeURIComponent(ref.category)}/${encodeURIComponent(ref.filename)}`;
 }
@@ -970,8 +993,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('sidebar').classList.add('collapsed');
   }
   document.documentElement.removeAttribute('data-mobile');
+  await loadRole();
   await loadSessions();
-  await loadTokenStatus();
+  if (isAdmin) await loadTokenStatus();
   await loadNotes();
   initKeywordInput();
   initStatusPicker();
@@ -1070,7 +1094,7 @@ function renderSidebar() {
               <div class="sb-session-title">${esc(city)}</div>
               <div class="sb-session-meta">${date} · ${s.meta.totalResults} leads</div>
             </div>
-            <button class="sb-session-del" onclick="event.stopPropagation();confirmDeleteSession('${esc(s.category)}','${esc(s.filename)}')" title="Delete">×</button>
+            <button class="sb-session-del admin-only" onclick="event.stopPropagation();confirmDeleteSession('${esc(s.category)}','${esc(s.filename)}')" title="Delete">×</button>
           </div>`;
         }).join('')}
       </div>
@@ -1248,7 +1272,7 @@ function renderTable() {
         <div class="action-cell">
           <button class="act-btn" onclick="openEditLead(${idx})" title="Edit">✏</button>
           ${mapsBtn}
-          <button class="act-btn del" onclick="confirmDeleteLead(${idx})" title="Delete">🗑</button>
+          <button class="act-btn del admin-only" onclick="confirmDeleteLead(${idx})" title="Delete">🗑</button>
         </div>
       </td>
     </tr>`;
@@ -1324,6 +1348,7 @@ async function quickStatus(idx, status, el) {
 }
 
 function openAddLead() {
+  if (!isAdmin) return;
   editingIdx = null;
   document.getElementById('leadModalTitle').textContent = 'Add Lead';
   clearLeadForm();
@@ -1461,6 +1486,7 @@ async function copyPhones() {
 // GENERATE PAGE
 // ═══════════════════════════════════════════════════════════
 function openGeneratePage() {
+  if (!isAdmin) return;
   kwList = [];
   kwRender();
   document.getElementById('genProgress').classList.remove('visible');
@@ -1751,6 +1777,7 @@ function toggleTokenVis() {
 }
 
 function openSettings() {
+  if (!isAdmin) return;
   loadTokenStatus();
   openModal('settingsModal');
 }
