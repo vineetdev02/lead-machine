@@ -1825,17 +1825,27 @@ async function fetchAndSaveResults(runId, city, filters = {}) {
       leads
     });
 
-    let msg = `Saved <b>${leads.length}</b> leads`;
-    if (dupes) msg += `, removed <b>${dupes}</b> duplicates`;
-    if (filteredOut) msg += `, filtered out <b>${filteredOut}</b> by criteria`;
-    msg += '!';
+    let msg, toastMsg;
+    if (session.merged) {
+      msg = `Merged into existing <b>${esc(city)}</b> — added <b>${session.added}</b> new`;
+      if (session.skipped) msg += `, <b>${session.skipped}</b> already existed (statuses kept)`;
+      if (session.enriched) msg += `, <b>${session.enriched}</b> enriched`;
+      msg += `. Total now <b>${session.total}</b>.`;
+      toastMsg = `Merged ${session.added} new into ${city} (${session.skipped} already there)`;
+    } else {
+      msg = `Saved <b>${leads.length}</b> leads`;
+      if (dupes) msg += `, removed <b>${dupes}</b> duplicates`;
+      if (filteredOut) msg += `, filtered out <b>${filteredOut}</b> by criteria`;
+      msg += '!';
+      toastMsg = `Generated ${leads.length} leads for ${city}`;
+    }
     showGenProgress('SUCCEEDED', msg);
     setGenLoading(false);
     await loadSessions();
     setTimeout(() => {
       openSession(session.category, session.filename);
     }, 1200);
-    toast(`Generated ${leads.length} leads for ${city}`, 'success');
+    toast(toastMsg, 'success');
 
   } catch (e) {
     setGenLoading(false);

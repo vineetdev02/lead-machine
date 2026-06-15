@@ -113,6 +113,46 @@ function buildCsv(leads) {
   return [h.join(','), ...rows].join('\n');
 }
 
+// Write the CSV + XLSX siblings for a session JSON file. Best-effort.
+function writeExports(catFolder, jsonFilename, leads) {
+  try {
+    fs.writeFileSync(safePath(catFolder, jsonFilename.replace('.json', '.csv')), buildCsv(leads), 'utf8');
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leads.map(l => ({
+      Name: l.name, Category: l.category, Address: l.address, Phone: l.phone,
+      Website: l.website, Email: l.email, Rating: l.rating, Reviews: l.reviewsCount,
+      'Google Maps': l.googleMapsUrl, Status: l.status, Notes: l.notes
+    }))), 'Leads');
+    XLSX.writeFile(wb, safePath(catFolder, jsonFilename.replace('.json', '.xlsx')));
+  } catch (e) {
+    console.error('[EXPORT] CSV/XLSX write failed:', e.message);
+  }
+}
+
+// Identity key for de-duplicating a lead across pulls: prefer the Google Maps
+// place URL (stable place id), else name + address (case-insensitive).
+function leadKey(l) {
+  return (l.googleMapsUrl || `${(l.name || '').trim().toLowerCase()}|${(l.address || '').trim().toLowerCase()}`);
+}
+
+// Find the most-recent existing session in a menu whose city matches (so a
+// re-pull of the same location merges into it instead of duplicating).
+function findCitySession(catFolder, city) {
+  const dir = safePath(catFolder);
+  if (!fs.existsSync(dir)) return null;
+  const want = String(city || '').trim().toLowerCase();
+  if (!want) return null;
+  let best = null;
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      if (String(data.meta?.city || '').trim().toLowerCase() !== want) continue;
+      if (!best || (data.meta?.fetchedAt || '') > (best.data.meta?.fetchedAt || '')) best = { filename: f, data };
+    } catch {}
+  }
+  return best;
+}
+
 // ── Token ─────────────────────────────────────────────────────────────────
 app.get('/api/token', auth.requireAdmin, (req, res) => {
   res.json({ token: process.env.APIFY_TOKEN || '' });
@@ -279,9 +319,52 @@ app.post('/api/sessions', auth.requireAdmin, (req, res) => {
 
     const ts = new Date().toISOString().slice(0, 10) + '_' + new Date().toTimeString().slice(0, 5).replace(':', '');
     const catFolder = (category || 'Other').trim() + ' Leads';
-    const filename = `${(city || 'all').replace(/\s+/g, '-')}_${ts}.json`;
     const leads = rawLeads.map(l => normalizeLead(l, category));
 
+    // ── Smart merge: if this menu already has this location, merge into it ──
+    const existing = findCitySession(catFolder, city);
+    if (existing) {
+      const data = existing.data;
+      data.leads = data.leads || [];
+      const seen = new Map(data.leads.map(l => [leadKey(l), l]));
+      // Only these fields are safe to backfill on an existing lead — never
+      // touch status / notes / followUpDate / lastContactedAt.
+      const ENRICH = ['phone', 'website', 'email', 'googleMapsUrl', 'address'];
+      let added = 0, enriched = 0;
+      for (const nl of leads) {
+        const k = leadKey(nl);
+        const cur = seen.get(k);
+        if (!cur) {
+          data.leads.push(nl);
+          seen.set(k, nl);
+          added++;
+        } else {
+          let touched = false;
+          for (const f of ENRICH) {
+            const empty = cur[f] === null || cur[f] === undefined || cur[f] === '';
+            const has = nl[f] !== null && nl[f] !== undefined && nl[f] !== '';
+            if (empty && has) { cur[f] = nl[f]; touched = true; }
+          }
+          if (touched) enriched++;
+        }
+      }
+      data.meta = data.meta || {};
+      data.meta.keywords = [...new Set([...(data.meta.keywords || []), ...(keywords || [])])];
+      data.meta.lastFetchedAt = new Date().toISOString();
+      syncMeta(data);
+
+      writeSession(catFolder, existing.filename, data);
+      writeExports(catFolder, existing.filename, data.leads);
+      const skipped = leads.length - added;
+      console.log(`[SAVE SESSION] ✓ Merged into ${catFolder}/${existing.filename} (+${added} new, ${skipped} existing, ${enriched} enriched)`);
+      return res.json({
+        category: catFolder, filename: existing.filename, meta: data.meta,
+        merged: true, added, skipped, enriched, total: data.leads.length
+      });
+    }
+
+    // ── Otherwise create a fresh location session ──
+    const filename = `${(city || 'all').replace(/\s+/g, '-')}_${ts}.json`;
     const data = {
       meta: {
         tool: 'LeadHunter',
@@ -299,22 +382,10 @@ app.post('/api/sessions', auth.requireAdmin, (req, res) => {
     };
 
     writeSession(catFolder, filename, data);
+    writeExports(catFolder, filename, data.leads);
     console.log(`[SAVE SESSION] ✓ Wrote ${catFolder}/${filename}`);
 
-    try {
-      fs.writeFileSync(safePath(catFolder, filename.replace('.json', '.csv')), buildCsv(leads), 'utf8');
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leads.map(l => ({
-        Name: l.name, Category: l.category, Address: l.address, Phone: l.phone,
-        Website: l.website, Email: l.email, Rating: l.rating, Reviews: l.reviewsCount,
-        'Google Maps': l.googleMapsUrl, Status: l.status, Notes: l.notes
-      }))), 'Leads');
-      XLSX.writeFile(wb, safePath(catFolder, filename.replace('.json', '.xlsx')));
-    } catch (e) {
-      console.error('[SAVE SESSION] CSV/XLSX export failed:', e.message);
-    }
-
-    res.json({ category: catFolder, filename, meta: data.meta });
+    res.json({ category: catFolder, filename, meta: data.meta, merged: false, added: leads.length, total: leads.length });
   } catch (e) {
     console.error('[SAVE SESSION] FAILED:', e);
     res.status(500).json({ error: e.message });
