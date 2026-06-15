@@ -53,6 +53,12 @@ function httpsRequest(method, urlStr, body) {
   });
 }
 
+// Middleware: block access to a menu (folder) the current user isn't scoped to.
+function menuGuard(req, res, next) {
+  if (auth.canAccessMenu(req, req.params.cat)) return next();
+  return res.status(403).json({ error: 'forbidden: no access to this menu' });
+}
+
 // ── File helpers ──────────────────────────────────────────────────────────
 function safePath(...parts) {
   const p = path.resolve(DATA_DIR, ...parts);
@@ -129,6 +135,7 @@ app.get('/api/sessions', (req, res) => {
   const sessions = [];
   if (!fs.existsSync(DATA_DIR)) return res.json([]);
   for (const cat of fs.readdirSync(DATA_DIR, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name)) {
+    if (!auth.canAccessMenu(req, cat)) continue;
     const catPath = path.join(DATA_DIR, cat);
     for (const file of fs.readdirSync(catPath).filter(f => f.endsWith('.json'))) {
       try {
@@ -141,8 +148,78 @@ app.get('/api/sessions', (req, res) => {
   res.json(sessions);
 });
 
+// ── Menus (categories) ──────────────────────────────────────────────────────
+// A "menu" is a top-level folder; each session file inside it is a sub-item.
+app.get('/api/categories', (req, res) => {
+  const cats = [];
+  if (fs.existsSync(DATA_DIR)) {
+    for (const d of fs.readdirSync(DATA_DIR, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      if (!auth.canAccessMenu(req, d.name)) continue;
+      const files = fs.readdirSync(path.join(DATA_DIR, d.name)).filter(f => f.endsWith('.json'));
+      let leads = 0;
+      for (const f of files) {
+        try { leads += (JSON.parse(fs.readFileSync(path.join(DATA_DIR, d.name, f), 'utf8')).leads || []).length; } catch {}
+      }
+      cats.push({ folder: d.name, name: d.name.replace(/ Leads$/, ''), sessions: files.length, leads });
+    }
+  }
+  cats.sort((a, b) => a.name.localeCompare(b.name));
+  res.json(cats);
+});
+
+// Rename a menu. If the target name already exists, the two menus MERGE
+// (sessions moved in, colliding filenames suffixed). Admin only.
+app.post('/api/categories/rename', auth.requireAdmin, (req, res) => {
+  try {
+    const fromFolder = String(req.body.from || '').trim();
+    const toName = String(req.body.to || '').trim().replace(/ Leads$/, '');
+    if (!fromFolder || !toName) return res.status(400).json({ error: 'from and to required' });
+    const src = safePath(fromFolder);
+    if (!fs.existsSync(src)) return res.status(404).json({ error: 'menu not found' });
+    const toFolder = toName + ' Leads';
+    const dst = safePath(toFolder);
+    if (path.resolve(src) === path.resolve(dst)) return res.json({ ok: true, folder: toFolder });
+
+    const merged = fs.existsSync(dst);
+    fs.mkdirSync(dst, { recursive: true });
+    for (const f of fs.readdirSync(src)) {
+      let target = path.join(dst, f);
+      if (fs.existsSync(target)) {
+        const ext = path.extname(f), base = path.basename(f, ext);
+        target = path.join(dst, `${base}_${Date.now().toString(36)}${ext}`);
+      }
+      if (f.endsWith('.json')) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(src, f), 'utf8'));
+          if (data.meta) data.meta.category = toName;
+          fs.writeFileSync(target, JSON.stringify(data, null, 2), 'utf8');
+          fs.unlinkSync(path.join(src, f));
+          continue;
+        } catch {}
+      }
+      fs.renameSync(path.join(src, f), target);
+    }
+    try { fs.rmdirSync(src); } catch {}
+    auth.updateMenuInAccess(fromFolder, toName);
+    res.json({ ok: true, folder: toFolder, merged });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete a whole menu (folder) and all its sessions. Admin only.
+app.delete('/api/categories/:folder', auth.requireAdmin, (req, res) => {
+  try {
+    const dir = safePath(req.params.folder);
+    if (path.resolve(dir) === path.resolve(DATA_DIR)) return res.status(400).json({ error: 'invalid' });
+    if (!fs.existsSync(dir)) return res.status(404).json({ error: 'menu not found' });
+    fs.rmSync(dir, { recursive: true, force: true });
+    auth.updateMenuInAccess(req.params.folder, null);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Single session ────────────────────────────────────────────────────────
-app.get('/api/sessions/:cat/:file', (req, res) => {
+app.get('/api/sessions/:cat/:file', menuGuard, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Not found' });
   // Normalize leads (adds missing fields for old format files)
@@ -161,7 +238,7 @@ app.delete('/api/sessions/:cat/:file', auth.requireAdmin, (req, res) => {
 });
 
 // ── Leads CRUD ────────────────────────────────────────────────────────────
-app.patch('/api/sessions/:cat/:file/leads/:idx', (req, res) => {
+app.patch('/api/sessions/:cat/:file/leads/:idx', menuGuard, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Session not found' });
   const idx = parseInt(req.params.idx);
@@ -273,7 +350,7 @@ app.get('/api/apify/run/:runId/results', auth.requireAdmin, async (req, res) => 
 });
 
 // ── Export ─────────────────────────────────────────────────────────────────
-app.get('/api/export/:cat/:file/csv', (req, res) => {
+app.get('/api/export/:cat/:file/csv', menuGuard, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Not found' });
   res.setHeader('Content-Type', 'text/csv');
@@ -281,7 +358,7 @@ app.get('/api/export/:cat/:file/csv', (req, res) => {
   res.send(buildCsv((data.leads || []).map(l => normalizeLead(l, data.meta?.category))));
 });
 
-app.get('/api/export/:cat/:file/xlsx', (req, res) => {
+app.get('/api/export/:cat/:file/xlsx', menuGuard, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Not found' });
   const leads = (data.leads || []).map(l => normalizeLead(l, data.meta?.category));
@@ -301,7 +378,7 @@ app.get('/api/export/:cat/:file/xlsx', (req, res) => {
 });
 
 // ── Copy phones list ───────────────────────────────────────────────────────
-app.get('/api/export/:cat/:file/phones', (req, res) => {
+app.get('/api/export/:cat/:file/phones', menuGuard, (req, res) => {
   const data = readSession(req.params.cat, req.params.file);
   if (!data) return res.status(404).json({ error: 'Not found' });
   const phones = (data.leads || []).map(l => l.phone).filter(Boolean);

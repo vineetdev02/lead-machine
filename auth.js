@@ -38,6 +38,9 @@ function loadUsers() {
             email: String(u.email),
             passwordHash: String(u.passwordHash),
             role: u.role === 'admin' ? 'admin' : 'agent',
+            // Optional menu scoping for agents: array of menu names they may see.
+            // Absent => all menus (back-compat). Empty array => none.
+            allowedMenus: Array.isArray(u.allowedMenus) ? u.allowedMenus.map(String) : undefined,
           });
         }
       }
@@ -143,4 +146,50 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ error: 'forbidden: admin only' });
 }
 
-module.exports = { mountRoutes, requireAuth, requireAdmin, isConfigured, COOKIE_NAME };
+const normMenu = s => String(s || '').replace(/ Leads$/, '').trim().toLowerCase();
+
+// Returns null if the current request may see ALL menus (admin, dev, or an
+// agent with no allowedMenus set). Otherwise an array of allowed menu names.
+function allowedMenusFor(req) {
+  if (!isConfigured) return null;
+  const sess = readSession(req);
+  if (!sess) return [];
+  if ((sess.role || 'admin') === 'admin') return null;
+  const u = findUser(sess.sub);
+  if (!u || u.role === 'admin') return u ? null : [];
+  return u.allowedMenus === undefined ? null : u.allowedMenus;
+}
+
+// Can the current request access this menu folder? Admin/all => true.
+function canAccessMenu(req, folder) {
+  const allow = allowedMenusFor(req);
+  if (allow === null) return true;
+  return allow.some(m => normMenu(m) === normMenu(folder));
+}
+
+// Keep agents' allowedMenus consistent when a menu is renamed (newName) or
+// deleted (newName = null). Best-effort; ignores errors.
+function updateMenuInAccess(oldName, newName) {
+  try {
+    const arr = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    if (!Array.isArray(arr)) return;
+    let changed = false;
+    for (const u of arr) {
+      if (!Array.isArray(u.allowedMenus)) continue;
+      const next = [];
+      for (const m of u.allowedMenus) {
+        if (normMenu(m) === normMenu(oldName)) {
+          changed = true;
+          if (newName) next.push(String(newName).replace(/ Leads$/, '').trim());
+        } else next.push(m);
+      }
+      u.allowedMenus = [...new Set(next)];
+    }
+    if (changed) fs.writeFileSync(USERS_FILE, JSON.stringify(arr, null, 2) + '\n', 'utf8');
+  } catch { /* best effort */ }
+}
+
+module.exports = {
+  mountRoutes, requireAuth, requireAdmin, isConfigured, COOKIE_NAME,
+  allowedMenusFor, canAccessMenu, updateMenuInAccess,
+};

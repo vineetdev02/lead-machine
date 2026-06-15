@@ -46,6 +46,11 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--txt);font-si
 .sb-cat-icon{font-size:11px;color:var(--muted);transition:transform .2s}
 .sb-cat-icon.open{transform:rotate(90deg)}
 .sb-cat-name{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;flex:1}
+.sb-cat-edit,.sb-cat-del{background:none;border:none;color:transparent;cursor:pointer;font-size:13px;padding:1px 4px;transition:color .15s;flex-shrink:0;line-height:1}
+.sb-cat-header:hover .sb-cat-edit,.sb-cat-header:hover .sb-cat-del{color:var(--txt)}
+.sb-cat-edit:hover{color:var(--acc)}
+.sb-cat-del{font-size:12px}
+.sb-cat-del:hover{color:var(--red)}
 .sb-cat-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1px 7px}
 .sb-sessions{display:none;padding-left:4px}
 .sb-sessions.open{display:block}
@@ -626,9 +631,9 @@ body.role-agent .admin-only{display:none !important}
               </div>
               <div class="gen-grid-2">
                 <div class="form-group">
-                  <label>City *</label>
-                  <input type="text" id="genCity" placeholder="e.g. Rajkot, Junagadh, Surat">
-                  <div id="cityErr" class="field-err" style="display:none">City is required</div>
+                  <label>Location *</label>
+                  <input type="text" id="genCity" placeholder="e.g. Rajkot, Porbandar, Jetpur, Upleta">
+                  <div id="cityErr" class="field-err" style="display:none">Location is required</div>
                 </div>
                 <div class="form-group">
                   <label>Country</label>
@@ -637,10 +642,34 @@ body.role-agent .admin-only{display:none !important}
               </div>
             </div>
 
+            <!-- Save destination (menu) -->
+            <div class="gen-section">
+              <div class="gen-section-title">
+                Save To Menu
+                <span class="badge req">Required</span>
+              </div>
+              <div class="gen-grid-2">
+                <div class="form-group">
+                  <label>Lead Menu</label>
+                  <select id="genMenu" onchange="onMenuChange()">
+                    <option value="__new__">➕ Create new menu…</option>
+                  </select>
+                </div>
+                <div class="form-group" id="genNewMenuWrap">
+                  <label>New Menu Name</label>
+                  <input type="text" id="genNewMenu" placeholder="e.g. Car Rental">
+                  <div id="menuErr" class="field-err" style="display:none">Choose or name a menu</div>
+                </div>
+              </div>
+              <div class="gen-footer-info" style="margin-top:8px">
+                These leads (<b id="genMenuCityHint">location</b>) become a location sub-item inside the chosen menu.
+              </div>
+            </div>
+
             <!-- Search settings -->
             <div class="gen-section">
               <div class="gen-section-title">Search Settings</div>
-              <div class="gen-grid-3">
+              <div class="gen-grid-2">
                 <div class="form-group">
                   <label>Max Results / Keyword</label>
                   <select id="genMax">
@@ -659,10 +688,6 @@ body.role-agent .admin-only{display:none !important}
                     <option value="11" selected>Wide (city + nearby)</option>
                     <option value="10">Very Wide (district)</option>
                   </select>
-                </div>
-                <div class="form-group">
-                  <label>Session Name <span style="text-transform:none;letter-spacing:0;font-size:9px">(optional)</span></label>
-                  <input type="text" id="genSessionName" placeholder="Auto-generated if blank">
                 </div>
               </div>
             </div>
@@ -821,6 +846,31 @@ body.role-agent .admin-only{display:none !important}
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Close</button>
       <button class="btn btn-primary" onclick="saveToken()">Save Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Rename Menu Modal ── -->
+<div class="modal-overlay" id="renameMenuModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <h2>Rename Menu</h2>
+      <button class="modal-close" onclick="closeModal('renameMenuModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Menu Name</label>
+        <input type="text" id="renameMenuInput" placeholder="e.g. Car Rental"
+          onkeydown="if(event.key==='Enter')saveRenameMenu()">
+      </div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:10px">
+        Tip: rename to an existing menu's name to <strong style="color:var(--txt)">merge</strong> them —
+        all sub-items move into that menu.
+      </p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('renameMenuModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRenameMenu()">Save</button>
     </div>
   </div>
 </div>
@@ -1082,6 +1132,8 @@ function renderSidebar() {
       <div class="sb-cat-header" onclick="toggleCat(this)">
         <span class="sb-cat-icon ${open ? 'open' : ''}">▶</span>
         <span class="sb-cat-name">${esc(cat.replace(' Leads', ''))}</span>
+        <button class="sb-cat-edit admin-only" onclick="event.stopPropagation();renameMenu('${esc(cat)}')" title="Rename menu">✎</button>
+        <button class="sb-cat-del admin-only" onclick="event.stopPropagation();confirmDeleteMenu('${esc(cat)}')" title="Delete menu">🗑</button>
         <span class="sb-cat-count">${sessions.length}</span>
       </div>
       <div class="sb-sessions ${open ? 'open' : ''}">
@@ -1498,8 +1550,67 @@ function openGeneratePage() {
   document.getElementById('cityErr').style.display = 'none';
   document.getElementById('kwWrap').classList.remove('error');
   document.getElementById('genCity').classList.remove('error');
+  document.getElementById('menuErr').style.display = 'none';
+  document.getElementById('genNewMenu').value = '';
+  loadMenusIntoSelect();
+  const cityIn = document.getElementById('genCity');
+  cityIn.oninput = () => { document.getElementById('genMenuCityHint').textContent = cityIn.value.trim() || 'location'; };
   showView('generate');
   renderSidebar();
+}
+
+// Populate the menu dropdown with existing menus; default to the first one if
+// any exist, otherwise fall back to "create new".
+async function loadMenusIntoSelect() {
+  const sel = document.getElementById('genMenu');
+  let cats = [];
+  try { cats = await api('GET', '/api/categories'); } catch {}
+  sel.innerHTML = '<option value="__new__">➕ Create new menu…</option>' +
+    cats.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.sessions})</option>`).join('');
+  sel.value = cats.length ? cats[0].name : '__new__';
+  onMenuChange();
+}
+
+function onMenuChange() {
+  const isNew = document.getElementById('genMenu').value === '__new__';
+  document.getElementById('genNewMenuWrap').style.display = isNew ? 'block' : 'none';
+}
+
+// ── Rename / merge a menu (admin only) ──────────────────────────────────────
+let renameMenuFrom = null;
+function renameMenu(folder) {
+  if (!isAdmin) return;
+  renameMenuFrom = folder;
+  document.getElementById('renameMenuInput').value = folder.replace(/ Leads$/, '');
+  openModal('renameMenuModal');
+  setTimeout(() => document.getElementById('renameMenuInput').focus(), 60);
+}
+
+async function saveRenameMenu() {
+  const to = document.getElementById('renameMenuInput').value.trim();
+  if (!to) { toast('Enter a menu name', 'warning'); return; }
+  try {
+    const r = await api('POST', '/api/categories/rename', { from: renameMenuFrom, to });
+    closeModal('renameMenuModal');
+    toast(r.merged ? 'Menus merged' : 'Menu renamed', 'success');
+    curRef = null;
+    await loadSessions();
+    showView('empty');
+  } catch (e) { toast('Rename failed: ' + e.message, 'error'); }
+}
+
+function confirmDeleteMenu(folder) {
+  if (!isAdmin) return;
+  const name = folder.replace(/ Leads$/, '');
+  showConfirm('Delete Menu', `Delete the "${name}" menu and ALL its sub-items (leads)? This cannot be undone.`, async () => {
+    try {
+      await api('DELETE', `/api/categories/${encodeURIComponent(folder)}`);
+      toast('Menu deleted', 'success');
+      curRef = null;
+      await loadSessions();
+      showView('empty');
+    } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+  });
 }
 
 function toggleOptional() {
@@ -1574,6 +1685,20 @@ async function startGenerate() {
     document.getElementById('genCity').classList.remove('error');
     document.getElementById('cityErr').style.display = 'none';
   }
+
+  // Resolve target menu (existing selection or a newly typed name)
+  const menuSel = document.getElementById('genMenu').value;
+  const menu = menuSel === '__new__'
+    ? document.getElementById('genNewMenu').value.trim()
+    : menuSel;
+  if (!menu) {
+    document.getElementById('menuErr').style.display = 'block';
+    document.getElementById('genNewMenu').classList.add('error');
+    hasError = true;
+  } else {
+    document.getElementById('menuErr').style.display = 'none';
+    document.getElementById('genNewMenu').classList.remove('error');
+  }
   if (hasError) return;
 
   const country = document.getElementById('genCountry').value.trim();
@@ -1582,7 +1707,6 @@ async function startGenerate() {
   const minRating = parseFloat(document.getElementById('genMinRating').value) || 0;
   const minReviews = parseInt(document.getElementById('genMinReviews').value) || 0;
   const requirePhone = document.getElementById('genRequirePhone').value === '1';
-  const customName = document.getElementById('genSessionName').value.trim();
   const loc = `${city}${country ? ', ' + country : ''}`;
   const searchStrings = kwList.map(kw => `${kw} in ${loc}`);
 
@@ -1616,7 +1740,7 @@ async function startGenerate() {
 
     const runId = run.data.id;
     showGenProgress('RUNNING', `Run started (<b>${runId.slice(0, 8)}…</b>). Polling every 5s...`);
-    pollRun(runId, city, country, max, searchStrings, { minRating, minReviews, requirePhone, customName });
+    pollRun(runId, city, country, max, searchStrings, { minRating, minReviews, requirePhone, menu });
 
   } catch (e) {
     setGenLoading(false);
@@ -1658,7 +1782,7 @@ function pollRun(runId, city, country, max, searchStrings, filters) {
 }
 
 async function fetchAndSaveResults(runId, city, filters = {}) {
-  const { minRating = 0, minReviews = 0, requirePhone = false, customName = '' } = filters;
+  const { minRating = 0, minReviews = 0, requirePhone = false, menu = '' } = filters;
   try {
     const items = await api('GET', `/api/apify/run/${runId}/results`);
     if (!items?.length) {
@@ -1693,7 +1817,7 @@ async function fetchAndSaveResults(runId, city, filters = {}) {
     const filteredOut = beforeFilter - leads.length;
     const dupes = items.length - beforeFilter;
 
-    const sessionCat = customName || kwList.join(' | ');
+    const sessionCat = menu || kwList.join(' | ');
     const session = await api('POST', '/api/sessions', {
       category: sessionCat,
       city,
